@@ -231,8 +231,8 @@ export default function AccueilPro() {
               <Button
                 shape="round"
                 icon={<LoginOutlined />}
-                href=  {`/login`}
-              style={btnPrimary}
+                href={`/login`}
+                style={btnPrimary}
               >
                 Espace client
               </Button>
@@ -374,7 +374,7 @@ export default function AccueilPro() {
 
 
           {/* 3) DÉMAT */}
-          <Section  title="Une comptabilité dématérialisée, sans prise de tête.">
+          <Section title="Une comptabilité dématérialisée, sans prise de tête.">
             <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
               <List
                 dataSource={[
