@@ -23,7 +23,10 @@ import videotadias from "../assets/video/tadias.mp4";
 const { Title, Paragraph, Text } = Typography;
 const { useBreakpoint } = Grid;
 const { Header, Content, Footer } = Layout;
-const API_BASE = process.env.REACT_APP_API_BASE;
+
+const cleanBase = (s) => (s || "").replace(/\/+$/, "");
+const API_BASE =
+  cleanBase(process.env.REACT_APP_API_BASE) || "http://localhost:8000";
 const MotionDiv = motion.div;
 
 export default function AccueilPro() {

@@ -24,7 +24,15 @@ const slogan = '';
 
 // ✅ items “bruts”
 const baseMenuItems = [
-  { key: '/dashboard', icon: <PieChartOutlined />, label: 'Tableau de bord' },
+  {
+    key: '/dashboard',
+    icon: <PieChartOutlined />,
+    label: (
+      <span style={{ fontSize: 15, fontWeight: 800 }}>
+        Tableau de bord
+      </span>
+    ),
+  },
   { key: '/tresorerie', icon: <WalletOutlined />, label: 'Cash estimé' },
   { key: '/activite', icon: <BarChartOutlined />, label: 'Activité' },
   { key: '/charge', icon: <DollarOutlined />, label: 'Charges' },
