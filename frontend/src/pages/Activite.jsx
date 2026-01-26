@@ -825,10 +825,7 @@ const token = useMemo(() => localStorage.getItem('token'), []);
               </Tag>
             )}
 
-            <Text style={{ display: 'block', marginTop: 10, color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
-              Calcul : somme des <b>crédits</b> sur <b>{docType === 'ALL' ? 'VTE + PRE' : docType}</b>
-              {isGlobal ? ' (global)' : ' (mois)'}
-            </Text>
+       
           </Card>
         </Col>
 
@@ -839,7 +836,7 @@ const token = useMemo(() => localStorage.getItem('token'), []);
               {Number(derived.nbFactures).toLocaleString('fr-FR')}
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Factures = <b>COUNT DISTINCT nomDuCompte</b> {isGlobal ? '(global)' : '(mois)'}
+              
             </Text>
           </Card>
         </Col>

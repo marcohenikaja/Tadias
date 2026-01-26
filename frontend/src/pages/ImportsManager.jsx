@@ -27,6 +27,9 @@ import {
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { useNavigate } from "react-router-dom";
+import { Grid } from 'antd';
+const { useBreakpoint } = Grid;
+
 dayjs.locale('fr');
 
 const { Title, Text } = Typography;
@@ -43,6 +46,99 @@ export default function ImportsManager() {
   const [search, setSearch] = useState('');
 
   const navigate = useNavigate();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+  const desktopColumns = [
+    {
+      title: 'Date',
+      dataIndex: 'createdAt',
+      width: 160,
+      render: (v) => dayjs(v).format('DD/MM/YYYY HH:mm'),
+      sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      defaultSortOrder: 'descend',
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      width: 110,
+      render: (v) => <Tag>{v}</Tag>,
+    },
+    {
+      title: 'Fichier',
+      dataIndex: 'fileName',
+    },
+    {
+      title: 'Lignes',
+      dataIndex: 'importedCount',
+      width: 90,
+      align: 'right',
+      render: (v) => <Text strong>{v}</Text>,
+    },
+    {
+      title: 'Batch',
+      dataIndex: 'id',
+      width: 200,
+      render: (id) => (
+        <Space size={6}>
+          <Text code>{String(id).slice(0, 6)}…{String(id).slice(-4)}</Text>
+          <Button size="small" icon={<CopyOutlined />} onClick={() => copy(id)} />
+        </Space>
+      ),
+    },
+    {
+      title: 'Actions',
+      width: 120,
+      render: (_, r) => (
+        <Button
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          loading={busyId === r.id}
+          onClick={() => confirmDelete(r)}
+        />
+      ),
+    },
+  ];
+
+
+
+  const mobileColumns = [
+    {
+      title: 'Import',
+      dataIndex: 'id',
+      render: (_, record) => (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Text strong>{record.fileName || '—'}</Text>
+            <Tag>{record.type}</Tag>
+          </div>
+
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(record.createdAt).format('DD/MM/YYYY HH:mm')}
+          </Text>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text>Lignes : <strong>{record.importedCount}</strong></Text>
+
+            <Space>
+              <Button
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={() => copy(record.id)}
+              />
+              <Button
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                loading={busyId === record.id}
+                onClick={() => confirmDelete(record)}
+              />
+            </Space>
+          </div>
+        </div>
+      ),
+    },
+  ];
 
   const [loadingList, setLoadingList] = useState(false);
   const [users, setUsers] = useState([]);
@@ -286,7 +382,7 @@ export default function ImportsManager() {
           message.error(res?.message || "Erreur lors de l'import du fichier.");
         }
       },
-      onDrop() {},
+      onDrop() { },
     }),
     [headers, fetchImports]
   );
@@ -367,7 +463,8 @@ export default function ImportsManager() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+   <div style={{ padding: isMobile ? 8 : 24 }}>
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -478,10 +575,14 @@ export default function ImportsManager() {
         ) : (
           <Table
             rowKey="id"
-            columns={columns}
+            columns={isMobile ? mobileColumns : desktopColumns}
             dataSource={filtered}
-            pagination={{ pageSize: 10, showSizeChanger: true }}
+            pagination={{
+              pageSize: isMobile ? 5 : 10,
+              showSizeChanger: !isMobile,
+            }}
           />
+
         )}
       </Card>
     </div>

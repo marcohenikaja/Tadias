@@ -778,7 +778,7 @@ export default function Tresorerie() {
             />
 
 
-            <Text type="secondary" style={{ fontSize: 12, color: '#fff' }}>Ligne “SOLDE OUVERTURE …” importée</Text>
+      
           </Card>
         </Col>
 

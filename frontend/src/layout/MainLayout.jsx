@@ -20,7 +20,7 @@ const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
 
-const slogan = 'Dématérialisez. Voyer clair. Décidez mieux.';
+const slogan = '';
 
 // ✅ items “bruts”
 const baseMenuItems = [
@@ -33,6 +33,7 @@ const baseMenuItems = [
   // ✅ ADMIN ONLY
   { key: '/imports-manager', icon: <SettingOutlined />, label: 'Paramètres', adminOnly: true },
 ];
+
 
 const pageMeta = {
   '/dashboard': {
@@ -75,6 +76,7 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const siderCollapsed = isMobile;
 
   // ✅ user depuis localStorage
   const user = useMemo(() => {
@@ -134,8 +136,9 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
       }}
     >
       <Sider
-        breakpoint="lg"
-        collapsedWidth={72}
+        collapsed={siderCollapsed}
+        collapsedWidth={64}
+        width={220}
         style={{
           position: 'sticky',
           top: 0,
@@ -144,6 +147,7 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
           borderRight: '1px solid rgba(255,255,255,0.06)',
         }}
       >
+
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Brand */}
           <div style={{ padding: '18px 14px 12px', display: 'flex', justifyContent: 'center' }}>
@@ -171,31 +175,23 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
                 />
               </div>
 
-              <div style={{ maxWidth: 220 }}>
-                <Text
-                  style={{
-                    display: 'block',
-                    fontSize: 18,
-                    fontWeight: 900,
-                    color: '#fff',
-                    letterSpacing: 0.4,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  TADIAS
-                </Text>
-                <Text
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    color: 'rgba(255,255,255,0.68)',
-                    lineHeight: 1.25,
-                    marginTop: 4,
-                  }}
-                >
-                  {slogan}
-                </Text>
-              </div>
+              {!siderCollapsed && (
+                <div style={{ maxWidth: 220 }}>
+                  <Text
+                    style={{
+                      display: 'block',
+                      fontSize: 18,
+                      fontWeight: 900,
+                      color: '#fff',
+                    }}
+                  >
+                    TADIAS
+                  </Text>
+                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.68)' }}>
+                    {slogan}
+                  </Text>
+                </div>
+              )}
             </div>
           </div>
 
@@ -235,7 +231,14 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
                   background: 'linear-gradient(135deg,#13c2c2,#722ed1)',
                 }}
               >
-                <UserOutlined style={{ color: '#fff' }} />
+                <UserOutlined
+                  style={{
+                    fontSize: 18,
+                    lineHeight: 1,
+                    display: 'block',
+                  }}
+                />
+
               </div>
 
               <div style={{ overflow: 'hidden', minWidth: 0 }}>
@@ -256,21 +259,42 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
               </div>
             </div>
 
-            <Button
-              danger
-              icon={<LogoutOutlined />}
-              onClick={handleLogout}
-              style={{
-                marginTop: 10,
-                width: '100%',
-                borderRadius: 12,
-                background: 'rgba(255,77,79,0.10)',
-                borderColor: 'rgba(255,77,79,0.35)',
-                color: '#ff4d4f',
-              }}
-            >
-              Déconnexion
-            </Button>
+            {isMobile ? (
+              <Button
+                danger
+                icon={<LogoutOutlined />}
+                onClick={handleLogout}
+                style={{
+                  marginTop: 10,
+                  width: 40,
+                  height: 40,
+                  padding: 0,
+                  borderRadius: 999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(255,77,79,0.10)',
+                  borderColor: 'rgba(255,77,79,0.35)',
+                }}
+              />
+            ) : (
+              <Button
+                danger
+                icon={<LogoutOutlined />}
+                onClick={handleLogout}
+                style={{
+                  marginTop: 10,
+                  width: '100%',
+                  borderRadius: 12,
+                  background: 'rgba(255,77,79,0.10)',
+                  borderColor: 'rgba(255,77,79,0.35)',
+                  color: '#ff4d4f',
+                }}
+              >
+                Déconnexion
+              </Button>
+            )}
+
           </div>
         </div>
       </Sider>
