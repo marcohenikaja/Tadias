@@ -1958,7 +1958,7 @@ export default function Dashboard() {
                         <DarkDialGauge
                           value={derived.caMois}
                           max="auto"
-                          size={isMobile ? 270 : 450}
+                          size={isMobile ? 270 : 440}
                           bottomValue={formatMontantAbs(derived.caMois)}
                           subtitle={isGlobal ? 'CA global' : 'CA du mois'}
                           blueGlow
