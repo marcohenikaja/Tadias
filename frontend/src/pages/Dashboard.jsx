@@ -1673,7 +1673,7 @@ export default function Dashboard() {
   const clusterGrid = {
     display: 'grid',
     gap: isMobile ? 16 : 12,
-    alignItems: 'end',
+    alignItems: 'center',
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1.05fr 1.05fr',
   };
 
