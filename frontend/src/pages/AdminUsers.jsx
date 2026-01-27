@@ -12,16 +12,21 @@ import {
   Typography,
   Modal,
   Popconfirm,
+  List,
+  Grid,
+  Divider,
 } from "antd";
 import { useNavigate } from "react-router-dom";
 
 const API_BASE = process.env.REACT_APP_API_BASE;
 const { Title, Text } = Typography;
+const { useBreakpoint } = Grid;
 
 export default function AdminUsers() {
   const [form] = Form.useForm();
   const [resetForm] = Form.useForm();
   const navigate = useNavigate();
+  const screens = useBreakpoint();
 
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
@@ -47,10 +52,13 @@ export default function AdminUsers() {
     const res = await fetch(url, {
       ...options,
       headers: {
+        Accept: "application/json",
         ...(options.headers || {}),
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
+
+    if (res.status === 204) return {};
 
     const data = await res.json().catch(() => ({}));
 
@@ -155,7 +163,6 @@ export default function AdminUsers() {
     }
   };
 
-  // ✅ supprimer user
   const deleteUser = async (userId) => {
     setDeletingIds((prev) => new Set(prev).add(userId));
     try {
@@ -175,14 +182,12 @@ export default function AdminUsers() {
     }
   };
 
-  // ✅ ouvrir modal reset mdp
   const openResetModal = (u) => {
     setResetUser(u);
     resetForm.resetFields();
     setResetOpen(true);
   };
 
-  // ✅ confirmer reset mdp
   const confirmResetPassword = async () => {
     try {
       const values = await resetForm.validateFields();
@@ -198,7 +203,6 @@ export default function AdminUsers() {
       setResetOpen(false);
       setResetUser(null);
     } catch (e) {
-      // validateFields throw -> ignore message
       if (e?.message && e.message !== "Non authentifié" && e.message !== "Accès refusé") {
         message.error(e.message || "Erreur reset");
       }
@@ -207,14 +211,32 @@ export default function AdminUsers() {
     }
   };
 
+  // Responsive: on cache/affiche certaines colonnes selon la taille
   const columns = [
-    { title: "Email", dataIndex: "email", key: "email" },
-    { title: "Nom", dataIndex: "name", key: "name", render: (v) => v || "-" },
-    { title: "Rôle", dataIndex: "role", key: "role" },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      ellipsis: true,
+      width: 240,
+      responsive: ["md"],
+    },
+    {
+      title: "Nom",
+      dataIndex: "name",
+      key: "name",
+      ellipsis: true,
+      render: (v) => v || "-",
+      width: 200,
+      responsive: ["lg"],
+    },
+    { title: "Rôle", dataIndex: "role", key: "role", width: 120, responsive: ["md"] },
     {
       title: "Actif",
       dataIndex: "isActive",
       key: "isActive",
+      width: 100,
+      responsive: ["md"],
       render: (val, record) => (
         <Switch
           checked={!!val}
@@ -227,15 +249,19 @@ export default function AdminUsers() {
       title: "Créé",
       dataIndex: "createdAt",
       key: "createdAt",
+      width: 180,
+      responsive: ["xl"],
       render: (v) => (v ? new Date(v).toLocaleString() : ""),
     },
     {
       title: "Actions",
       key: "actions",
+      width: 260,
+      responsive: ["md"],
       render: (_, record) => {
         const isMe = me?.id === record.id;
         return (
-          <Space>
+          <Space wrap>
             <Button size="small" onClick={() => openResetModal(record)}>
               Réinitialiser MDP
             </Button>
@@ -247,12 +273,7 @@ export default function AdminUsers() {
               onConfirm={() => deleteUser(record.id)}
               disabled={isMe}
             >
-              <Button
-                size="small"
-                danger
-                disabled={isMe}
-                loading={deletingIds.has(record.id)}
-              >
+              <Button size="small" danger disabled={isMe} loading={deletingIds.has(record.id)}>
                 Supprimer
               </Button>
             </Popconfirm>
@@ -263,6 +284,68 @@ export default function AdminUsers() {
       },
     },
   ];
+
+  // Mobile: cartes ultra lisibles
+  const MobileUsersList = () => (
+    <List
+      loading={loadingList}
+      dataSource={users}
+      locale={{ emptyText: "Aucun utilisateur" }}
+      renderItem={(u) => {
+        const isMe = me?.id === u.id;
+        return (
+          <List.Item style={{ paddingLeft: 0, paddingRight: 0 }}>
+            <Card style={{ width: "100%" }} bodyStyle={{ padding: 12 }}>
+              <Space direction="vertical" style={{ width: "100%" }} size={6}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <Text strong style={{ display: "block" }} ellipsis>
+                      {u.email}
+                    </Text>
+                    <Text type="secondary">{u.name || "-"}</Text>
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: "right" }}>
+                    <Text>{u.role}</Text>
+                    <div style={{ marginTop: 6 }}>
+                      <Switch
+                        checked={!!u.isActive}
+                        disabled={updatingIds.has(u.id)}
+                        onChange={(checked) => setActive(u.id, checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Divider style={{ margin: "8px 0" }} />
+
+                <Space wrap>
+                  <Button size="small" onClick={() => openResetModal(u)}>
+                    Réinitialiser MDP
+                  </Button>
+
+                  <Popconfirm
+                    title="Supprimer cet utilisateur ?"
+                    okText="Supprimer"
+                    cancelText="Annuler"
+                    onConfirm={() => deleteUser(u.id)}
+                    disabled={isMe}
+                  >
+                    <Button size="small" danger disabled={isMe} loading={deletingIds.has(u.id)}>
+                      Supprimer
+                    </Button>
+                  </Popconfirm>
+
+                  {isMe ? <Text type="secondary">(vous)</Text> : null}
+                </Space>
+              </Space>
+            </Card>
+          </List.Item>
+        );
+      }}
+    />
+  );
+
+  const isMobile = !screens.md; // xs/sm => mobile
 
   return (
     <Space direction="vertical" style={{ width: "100%" }} size={16}>
@@ -333,18 +416,35 @@ export default function AdminUsers() {
             />
           </Form.Item>
 
-          <Button type="primary" htmlType="submit" loading={loadingCreate}>
+          <Button type="primary" htmlType="submit" loading={loadingCreate} block={isMobile}>
             Créer
           </Button>
         </Form>
       </Card>
 
-      <Card title="Utilisateurs" loading={loadingList}>
-        <Table rowKey="id" dataSource={users} columns={columns} pagination={{ pageSize: 10 }} />
+      <Card title="Utilisateurs" loading={false}>
+        {isMobile ? (
+          <MobileUsersList />
+        ) : (
+          <Table
+            rowKey="id"
+            dataSource={users}
+            columns={columns}
+            loading={loadingList}
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+            // important pour la responsivité desktop
+            scroll={{ x: "max-content" }}
+            size="middle"
+          />
+        )}
       </Card>
 
       <Modal
-        title={resetUser ? `Réinitialiser le mot de passe — ${resetUser.email}` : "Réinitialiser le mot de passe"}
+        title={
+          resetUser
+            ? `Réinitialiser le mot de passe — ${resetUser.email}`
+            : "Réinitialiser le mot de passe"
+        }
         open={resetOpen}
         onCancel={() => {
           setResetOpen(false);
