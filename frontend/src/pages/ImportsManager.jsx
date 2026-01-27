@@ -22,12 +22,13 @@ import {
   CopyOutlined,
   HistoryOutlined,
   InboxOutlined,
-  TeamOutlined, // ✅ AJOUT
+  TeamOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { useNavigate } from "react-router-dom";
 import { Grid } from 'antd';
+
 const { useBreakpoint } = Grid;
 
 dayjs.locale('fr');
@@ -37,7 +38,36 @@ const { Dragger } = Upload;
 
 const API_BASE = process.env.REACT_APP_API_BASE;
 
-export default function ImportsManager() {
+export default function ImportsManager({ mode = "light" }) {
+  const isDark = mode === "dark";
+
+  // ✅ Styles globaux inline (pas de CSS)
+  const ui = useMemo(() => {
+    const textPrimary = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.88)';
+    const textSecondary = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
+    const textTertiary = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)';
+    const split = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)';
+
+    return {
+      textPrimary,
+      textSecondary,
+      textTertiary,
+      split,
+      pageBg: isDark ? '#0f1115' : 'transparent',
+
+      cardBg: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+      cardBorder: isDark ? '1px solid rgba(255,255,255,0.10)' : 'none',
+      shadow: isDark
+        ? '0 18px 45px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.40)'
+        : '0 18px 45px rgba(15,23,42,0.10), 0 0 1px rgba(15,23,42,0.08)',
+
+      icon: isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)',
+
+      draggerBg: isDark ? 'rgba(255,255,255,0.02)' : 'transparent',
+      draggerBorder: isDark ? '1px dashed rgba(255,255,255,0.18)' : undefined,
+    };
+  }, [isDark]);
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -48,100 +78,6 @@ export default function ImportsManager() {
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
-  const desktopColumns = [
-    {
-      title: 'Date',
-      dataIndex: 'createdAt',
-      width: 160,
-      render: (v) => dayjs(v).format('DD/MM/YYYY HH:mm'),
-      sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-      defaultSortOrder: 'descend',
-    },
-    {
-      title: 'Type',
-      dataIndex: 'type',
-      width: 110,
-      render: (v) => <Tag>{v}</Tag>,
-    },
-    {
-      title: 'Fichier',
-      dataIndex: 'fileName',
-    },
-    {
-      title: 'Lignes',
-      dataIndex: 'importedCount',
-      width: 90,
-      align: 'right',
-      render: (v) => <Text strong>{v}</Text>,
-    },
-    {
-      title: 'Batch',
-      dataIndex: 'id',
-      width: 200,
-      render: (id) => (
-        <Space size={6}>
-          <Text code>{String(id).slice(0, 6)}…{String(id).slice(-4)}</Text>
-          <Button size="small" icon={<CopyOutlined />} onClick={() => copy(id)} />
-        </Space>
-      ),
-    },
-    {
-      title: 'Actions',
-      width: 120,
-      render: (_, r) => (
-        <Button
-          danger
-          size="small"
-          icon={<DeleteOutlined />}
-          loading={busyId === r.id}
-          onClick={() => confirmDelete(r)}
-        />
-      ),
-    },
-  ];
-
-
-
-  const mobileColumns = [
-    {
-      title: 'Import',
-      dataIndex: 'id',
-      render: (_, record) => (
-        <div style={{ display: 'grid', gap: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Text strong>{record.fileName || '—'}</Text>
-            <Tag>{record.type}</Tag>
-          </div>
-
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {dayjs(record.createdAt).format('DD/MM/YYYY HH:mm')}
-          </Text>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text>Lignes : <strong>{record.importedCount}</strong></Text>
-
-            <Space>
-              <Button
-                size="small"
-                icon={<CopyOutlined />}
-                onClick={() => copy(record.id)}
-              />
-              <Button
-                danger
-                size="small"
-                icon={<DeleteOutlined />}
-                loading={busyId === record.id}
-                onClick={() => confirmDelete(record)}
-              />
-            </Space>
-          </div>
-        </div>
-      ),
-    },
-  ];
-
-  const [loadingList, setLoadingList] = useState(false);
-  const [users, setUsers] = useState([]);
 
   const token = localStorage.getItem("token");
   const me = useMemo(() => {
@@ -162,11 +98,9 @@ export default function ImportsManager() {
     try {
       setLoading(true);
       setError('');
-
       const res = await fetch(`${API_BASE}/api/imports`, { headers });
       if (!res.ok) throw new Error(`Erreur ${res.status}: ${res.statusText}`);
       const json = await res.json();
-
       setItems(Array.isArray(json.items) ? json.items : []);
     } catch (e) {
       setError(e?.message || 'Erreur inconnue');
@@ -189,7 +123,6 @@ export default function ImportsManager() {
       navigate("/dashboard", { replace: true });
       return;
     }
-    fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -233,7 +166,6 @@ export default function ImportsManager() {
 
         const json = await res.json();
         message.success(`Import supprimé (${json.deletedRows ?? 0} lignes)`);
-
         await fetchImports();
       } catch (e) {
         message.error(e?.message || 'Erreur suppression import');
@@ -243,52 +175,6 @@ export default function ImportsManager() {
     },
     [headers, fetchImports]
   );
-
-  const apiFetch = async (url, options = {}) => {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        ...(options.headers || {}),
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (res.status === 401) {
-      message.error("Session expirée. Reconnectez-vous.");
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      navigate("/login", { replace: true });
-      throw new Error("Non authentifié");
-    }
-
-    if (res.status === 403) {
-      message.error("Accès refusé (admin requis).");
-      navigate("/dashboard", { replace: true });
-      throw new Error("Accès refusé");
-    }
-
-    if (!res.ok || data.ok === false) {
-      throw new Error(data?.message || "Erreur API");
-    }
-
-    return data;
-  };
-
-  const fetchUsers = async () => {
-    setLoadingList(true);
-    try {
-      const data = await apiFetch(`${API_BASE}/api/admin/users`);
-      setUsers(data.users || []);
-    } catch (e) {
-      if (e.message !== "Non authentifié" && e.message !== "Accès refusé") {
-        message.error(e.message || "Erreur");
-      }
-    } finally {
-      setLoadingList(false);
-    }
-  };
 
   const deleteLast = useCallback(async () => {
     try {
@@ -316,16 +202,19 @@ export default function ImportsManager() {
       content: (
         <div style={{ marginTop: 8 }}>
           <div>
-            <Text strong>Fichier :</Text> {record.fileName || '—'}
+            <Text strong style={{ color: ui.textPrimary }}>Fichier :</Text>{' '}
+            <Text style={{ color: ui.textPrimary }}>{record.fileName || '—'}</Text>
           </div>
           <div>
-            <Text strong>Feuille :</Text> {record.sheetName || '—'}
+            <Text strong style={{ color: ui.textPrimary }}>Feuille :</Text>{' '}
+            <Text style={{ color: ui.textPrimary }}>{record.sheetName || '—'}</Text>
           </div>
           <div>
-            <Text strong>Lignes :</Text> {record.importedCount ?? '—'}
+            <Text strong style={{ color: ui.textPrimary }}>Lignes :</Text>{' '}
+            <Text style={{ color: ui.textPrimary }}>{record.importedCount ?? '—'}</Text>
           </div>
           <div style={{ marginTop: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text style={{ fontSize: 12, color: ui.textSecondary }}>
               Cette action supprimera toutes les lignes associées à ce batchId.
             </Text>
           </div>
@@ -342,11 +231,7 @@ export default function ImportsManager() {
     Modal.confirm({
       title: 'Supprimer le dernier import ?',
       icon: <ExclamationCircleOutlined />,
-      content: (
-        <Text type="secondary">
-          Cela supprimera le batch le plus récent (et toutes ses lignes).
-        </Text>
-      ),
+      content: <Text style={{ color: ui.textSecondary }}>Cela supprimera le batch le plus récent (et toutes ses lignes).</Text>,
       okText: 'Supprimer',
       okButtonProps: { danger: true },
       cancelText: 'Annuler',
@@ -354,7 +239,6 @@ export default function ImportsManager() {
     });
   };
 
-  // ✅ Upload intégré
   const propsUpload = useMemo(
     () => ({
       name: 'file',
@@ -362,7 +246,7 @@ export default function ImportsManager() {
       accept: '.xlsx,.xls',
       action: `${API_BASE}/import/grand-livre`,
       showUploadList: false,
-      headers, // ⚠️ si ton backend utilise auth
+      headers,
       onChange(info) {
         const { status } = info.file;
 
@@ -382,96 +266,112 @@ export default function ImportsManager() {
           message.error(res?.message || "Erreur lors de l'import du fichier.");
         }
       },
-      onDrop() { },
+      onDrop() {},
     }),
     [headers, fetchImports]
   );
 
-  const columns = [
+  const desktopColumns = [
     {
-      title: 'Date import',
+      title: 'Date',
       dataIndex: 'createdAt',
-      key: 'createdAt',
       width: 160,
-      render: (v) => (v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—'),
-      sorter: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+      render: (v) => dayjs(v).format('DD/MM/YYYY HH:mm'),
+      sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
       defaultSortOrder: 'descend',
     },
     {
       title: 'Type',
       dataIndex: 'type',
-      key: 'type',
-      width: 120,
-      render: (v) => <Tag style={{ borderRadius: 999 }}>{v || '—'}</Tag>,
+      width: 110,
+      render: (v) => <Tag style={{ borderRadius: 999 }}>{v}</Tag>,
     },
     {
       title: 'Fichier',
       dataIndex: 'fileName',
-      key: 'fileName',
-      render: (v) => <Text>{v || '—'}</Text>,
-    },
-    {
-      title: 'Feuille',
-      dataIndex: 'sheetName',
-      key: 'sheetName',
-      width: 180,
-      render: (v) => <Text type="secondary">{v || '—'}</Text>,
+      render: (v) => <Text style={{ color: ui.textPrimary }}>{v}</Text>,
     },
     {
       title: 'Lignes',
       dataIndex: 'importedCount',
-      key: 'importedCount',
       width: 90,
       align: 'right',
-      render: (v) => <Text strong>{Number(v || 0).toLocaleString('fr-FR')}</Text>,
-      sorter: (a, b) => Number(a.importedCount || 0) - Number(b.importedCount || 0),
+      render: (v) => <Text strong style={{ color: ui.textPrimary }}>{v}</Text>,
     },
     {
-      title: 'Batch ID',
+      title: 'Batch',
       dataIndex: 'id',
-      key: 'id',
-      width: 220,
+      width: 200,
       render: (id) => (
         <Space size={6}>
-          <Text code style={{ maxWidth: 160, display: 'inline-block' }}>
-            {String(id || '').slice(0, 8)}…{String(id || '').slice(-6)}
+          <Text code style={{ color: ui.textPrimary }}>
+            {String(id).slice(0, 6)}…{String(id).slice(-4)}
           </Text>
-          <Tooltip title="Copier le batchId">
-            <Button size="small" icon={<CopyOutlined />} onClick={() => copy(id)} />
-          </Tooltip>
+          <Button size="small" icon={<CopyOutlined />} onClick={() => copy(id)} />
         </Space>
       ),
     },
     {
       title: 'Actions',
-      key: 'actions',
-      width: 140,
-      render: (_, record) => (
-        <Space>
-          <Button
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            loading={busyId === record.id}
-            onClick={() => confirmDelete(record)}
-          >
-            Supprimer
-          </Button>
-        </Space>
+      width: 120,
+      render: (_, r) => (
+        <Button
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          loading={busyId === r.id}
+          onClick={() => confirmDelete(r)}
+        />
       ),
     },
   ];
 
-  return (
-   <div style={{ padding: isMobile ? 8 : 24 }}>
+  const mobileColumns = [
+    {
+      title: 'Import',
+      dataIndex: 'id',
+      render: (_, record) => (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Text strong style={{ color: ui.textPrimary }}>{record.fileName || '—'}</Text>
+            <Tag style={{ borderRadius: 999 }}>{record.type}</Tag>
+          </div>
 
+          <Text style={{ fontSize: 12, color: ui.textSecondary }}>
+            {dayjs(record.createdAt).format('DD/MM/YYYY HH:mm')}
+          </Text>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ color: ui.textPrimary }}>
+              Lignes : <strong>{record.importedCount}</strong>
+            </Text>
+
+            <Space>
+              <Button size="small" icon={<CopyOutlined />} onClick={() => copy(record.id)} />
+              <Button danger size="small" icon={<DeleteOutlined />} loading={busyId === record.id} onClick={() => confirmDelete(record)} />
+            </Space>
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  const cardBase = {
+    borderRadius: 18,
+    boxShadow: ui.shadow,
+    background: ui.cardBg,          // ✅ c’est ça qui enlève le blanc
+    border: ui.cardBorder,          // ✅ optionnel, joli en dark
+  };
+
+  return (
+    <div style={{ padding: isMobile ? 8 : 24, background: ui.pageBg }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={3} style={{ margin: 0, color: ui.textPrimary }}>
             <HistoryOutlined /> Gestion des imports
           </Title>
-          <Text type="secondary">
+          <Text style={{ color: ui.textSecondary }}>
             Importer un grand livre + historique des imports + suppression par batch.
           </Text>
         </div>
@@ -485,7 +385,6 @@ export default function ImportsManager() {
             style={{ minWidth: 280 }}
           />
 
-          {/* ✅ BOUTON VERS ADMIN USERS */}
           <Button icon={<TeamOutlined />} onClick={() => navigate("/admin-users")}>
             Gestion users
           </Button>
@@ -517,30 +416,31 @@ export default function ImportsManager() {
       )}
 
       {/* Upload */}
-      <Card
-        bordered={false}
-        style={{
-          borderRadius: 18,
-          boxShadow: '0 18px 45px rgba(15,23,42,0.10),0 0 1px rgba(15,23,42,0.08)',
-          marginBottom: 14,
-        }}
-      >
-        <Title level={4} style={{ marginBottom: 4 }}>
+      <Card bordered={false} style={{ ...cardBase, marginBottom: 14 }}>
+        <Title level={4} style={{ marginBottom: 4, color: ui.textPrimary }}>
           Import du fichier Grand livre
         </Title>
-        <Text type="secondary" style={{ fontSize: 13 }}>
+        <Text style={{ fontSize: 13, color: ui.textSecondary }}>
           Chargez votre fichier Excel <strong>grand_livre.xlsx</strong> (onglet <strong>"Grand livre"</strong>) pour mettre à jour les indicateurs.
         </Text>
 
         <div style={{ marginTop: 18 }}>
-          <Dragger {...propsUpload} disabled={uploading || busyId === 'LAST' || !!busyId}>
+          <Dragger
+            {...propsUpload}
+            disabled={uploading || busyId === 'LAST' || !!busyId}
+            style={{
+              background: ui.draggerBg,
+              border: ui.draggerBorder,
+              borderRadius: 14,
+            }}
+          >
             <p style={{ marginBottom: 8 }}>
-              <InboxOutlined style={{ fontSize: 40 }} />
+              <InboxOutlined style={{ fontSize: 40, color: ui.icon }} />
             </p>
-            <p style={{ marginBottom: 4, fontSize: 15 }}>
+            <p style={{ marginBottom: 4, fontSize: 15, color: ui.textPrimary }}>
               Cliquez ou glissez un fichier Excel ici
             </p>
-            <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
+            <p style={{ fontSize: 12, color: ui.textSecondary }}>
               Formats acceptés : .xls, .xlsx. Onglet <strong>Grand livre</strong> avec les colonnes :
               <br />
               <strong>Code, Nom du compte, Date, Communication, Partenaire, Débit, Crédit, Solde</strong>.
@@ -560,17 +460,11 @@ export default function ImportsManager() {
       <Divider style={{ margin: '10px 0 14px' }} />
 
       {/* Table */}
-      <Card
-        bordered={false}
-        style={{
-          borderRadius: 18,
-          boxShadow: '0 18px 45px rgba(15,23,42,0.10),0 0 1px rgba(15,23,42,0.08)',
-        }}
-      >
+      <Card bordered={false} style={cardBase}>
         {loading ? (
           <div style={{ minHeight: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
             <Spin />
-            <Text type="secondary">Chargement des imports…</Text>
+            <Text style={{ color: ui.textSecondary }}>Chargement des imports…</Text>
           </div>
         ) : (
           <Table
@@ -582,7 +476,6 @@ export default function ImportsManager() {
               showSizeChanger: !isMobile,
             }}
           />
-
         )}
       </Card>
     </div>

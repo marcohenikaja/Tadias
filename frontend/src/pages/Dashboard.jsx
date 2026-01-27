@@ -37,7 +37,9 @@ dayjs.locale('fr');
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
-const API_BASE = process.env.REACT_APP_API_BASE;
+const cleanBase = (s) => (s || '').replace(/\/+$/, '');
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) || 'http://localhost:8000';
+
 
 const COLORS = ['#13c2c2', '#722ed1', '#52c41a', '#faad14', '#ff7875', '#1890ff'];
 
@@ -1159,7 +1161,7 @@ function DashboardMobile({
       </Card>
 
       {/* Retards (cards clean) */}
-      <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+      <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>  
         <Card bordered={false} style={card} bodyStyle={{ padding: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
             <div>
@@ -1253,9 +1255,27 @@ function DashboardMobile({
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ mode = 'light' }) {
+
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+
+
+  const isDark = mode === 'dark';
+
+  const ui = useMemo(() => {
+    const textPrimary = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.88)';
+    const textSecondary = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
+    const textTertiary = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)';
+    const cardBg = isDark ? 'rgba(255,255,255,0.04)' : '#fff';
+    const split = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)';
+    const rowSplit = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+    const shadow = isDark
+      ? '0 18px 45px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.40)'
+      : '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)';
+    return { textPrimary, textSecondary, textTertiary, cardBg, split, rowSplit, shadow };
+  }, [isDark]);
+
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1523,10 +1543,18 @@ export default function Dashboard() {
 
   const cardSoft = {
     borderRadius: 22,
-    boxShadow: '0 18px 45px rgba(15,23,42,0.12),0 0 1px rgba(15,23,42,0.08)',
+    boxShadow: ui.shadow,
+    background: ui.cardBg,
+    border: isDark ? '1px solid rgba(255,255,255,0.10)' : 'none',
   };
 
-  const cardDark = { ...cardSoft, background: '#0b1220', color: '#fff' };
+  // ton cockpit/cluster est déjà très dark, on le garde, mais on “sync” juste le texte
+  const cardDark = {
+    ...cardSoft,
+    background: 'linear-gradient(180deg, #0b0f14 0%, #050607 70%, #000 100%)',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.10)',
+  };
 
   const alertOptions = isMobile
     ? [
@@ -1739,11 +1767,13 @@ export default function Dashboard() {
         }}
       >
         <div>
-          <Title level={2} style={{ margin: 0 }}>
+          <Title level={2} style={{ margin: 0, color: ui.textPrimary }}>
+
             Tableau de bord
           </Title>
           <Space size={8} wrap>
-            <Text type="secondary">Cockpit de pilotage de votre entreprise</Text>
+           <Text style={{ color: ui.textSecondary }}>Cockpit de pilotage de votre entreprise</Text>
+
             <Tag style={{ borderRadius: 999, margin: 0 }}>{periodeLabel}</Tag>
             {lastUpdatedLabel && (
               <Tag color="blue" style={{ borderRadius: 999, margin: 0 }}>
@@ -2037,13 +2067,13 @@ export default function Dashboard() {
           <Card bordered={false} style={cardSoft}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>Charges principales</Text>
-                <div style={{ fontWeight: 900, fontSize: 18, marginTop: 6 }}>
+                <Text type="secondary" style={{ fontSize: 12 ,color: ui.textSecondary}}>Charges principales</Text>
+                <div style={{ fontWeight: 900, fontSize: 18, marginTop: 6,color: ui.textSecondary }}>
                   {formatMontantAbs(derived.totalChargesMois)}
                 </div>
               </div>
               <AntTooltip title="Somme des débits ACH (camembert par partenaire)">
-                <InfoCircleOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />
+                <InfoCircleOutlined style={{ color: ui.textSecondary }} />
               </AntTooltip>
             </div>
 
@@ -2074,6 +2104,7 @@ export default function Dashboard() {
                   <Tooltip
                     formatter={(value, _name, { payload }) => {
                       const label = payload?.fullName || payload?.name || '';
+                      
                       return [formatMontantAbs(value), label];
                     }}
                     labelFormatter={() => ''}
@@ -2084,11 +2115,11 @@ export default function Dashboard() {
 
             <div style={{ marginTop: 6 }}>
               {derived.chargesPieData.slice(0, 4).map((c, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
-                  <Text style={{ fontSize: 12 }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 8,color: ui.textSecondary }}>
+                  <Text style={{ fontSize: 12 ,color: ui.textSecondary}}>
                     {c.fullName?.length > 18 ? `${c.fullName.slice(0, 16)}…` : c.fullName}
                   </Text>
-                  <Text strong style={{ fontSize: 12 }}>{formatMontantAbs(c.value)}</Text>
+                  <Text strong style={{ fontSize: 12,color: ui.textSecondary }}>{formatMontantAbs(c.value)}</Text>
                 </div>
               ))}
             </div>
@@ -2098,16 +2129,16 @@ export default function Dashboard() {
         {/* Retards */}
         <Col xs={24} lg={8}>
           <Card bordered={false} style={cardSoft}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: 12 , color: ui.textSecondary }}>
               Retards
             </Text>
 
-            <div style={{ marginTop: 12, display: 'grid', gap: 14 }}>
+            <div style={{ marginTop: 12, display: 'grid', gap: 14 ,color: ui.textSecondary}}>
               {/* Clients */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 , color: ui.textSecondary }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Text strong>Clients en retard</Text>
+                    <Text strong style={{color: ui.textSecondary }}>Clients en retard</Text>
                     <Tag color="cyan" style={{ borderRadius: 999, margin: 0 }}>
                       VTE/PRE
                     </Tag>
@@ -2118,7 +2149,7 @@ export default function Dashboard() {
                   <div style={{ fontWeight: 900, fontSize: 18, marginTop: 4 }}>{formatMontantAbs(derived.clients?.retard || 0)}</div>
 
                   {derived.clients?.oldestDate && (
-                    <Text type="secondary" style={{ fontSize: 11 }}>
+                    <Text type="secondary" style={{ fontSize: 11 ,color: ui.textSecondary}}>
                       Plus ancien: {dayjs(derived.clients.oldestDate).format('DD/MM/YYYY')}
                     </Text>
                   )}
@@ -2136,7 +2167,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Text strong>Fournisseurs en retard</Text>
+                       <Text strong style={{color: ui.textSecondary }}>Fournisseurs en retard</Text>
                     <Tag color="gold" style={{ borderRadius: 999, margin: 0 }}>
                       ACH
                     </Tag>
@@ -2165,7 +2196,7 @@ export default function Dashboard() {
             </div>
 
             <Divider style={{ margin: '14px 0' }} />
-            <Text type="secondary" style={{ fontSize: 11 }}>
+            <Text type="secondary" style={{ fontSize: 11 ,color: ui.textSecondary}}>
               Retards calculés sur les échéances (net par partenaire).
             </Text>
           </Card>
@@ -2174,7 +2205,7 @@ export default function Dashboard() {
         {/* Résultat brut */}
         <Col xs={24} lg={8}>
           <Card bordered={false} style={cardSoft}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: 12 ,color: ui.textSecondary}}>
               Résultat brut estimé
             </Text>
 
@@ -2204,9 +2235,7 @@ export default function Dashboard() {
                 >
                   {formatMontantSigned(derived.resultatBrut)}
                 </div>
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  Simple : CA – charges
-                </Text>
+              
               </div>
             </div>
           </Card>

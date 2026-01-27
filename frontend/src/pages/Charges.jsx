@@ -44,15 +44,42 @@ const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const cleanBase = (s) => (s || "").replace(/\/+$/, "");
-const API_BASE =
-  cleanBase(process.env.REACT_APP_API_BASE);
-
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE);
 
 const PIE_COLORS = ['#6bc6ffff', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#1890ff'];
 
-export default function Charges() {
+export default function Charges({ mode = 'light' }) {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const isDark = mode === 'dark';
+
+  // ✅ Palette inline (pas de CSS, pas de tokens AntD)
+  const ui = useMemo(() => {
+    const textPrimary = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.88)';
+    const textSecondary = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
+    const textTertiary = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)';
+    const split = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)';
+    const cardBg = isDark ? 'rgba(255,255,255,0.03)' : '#fff';
+    const tooltipBg = isDark ? 'rgba(20,20,20,0.95)' : 'rgba(0,0,0,0.85)';
+    const tooltipBorder = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.15)';
+
+    return {
+      textPrimary,
+      textSecondary,
+      textTertiary,
+      split,
+      cardBg,
+      tooltipBg,
+      tooltipBorder,
+      // style tooltip recharts
+      rechartsTooltip: {
+        backgroundColor: tooltipBg,
+        border: `1px solid ${tooltipBorder}`,
+        borderRadius: 10,
+        color: textPrimary,
+      },
+    };
+  }, [isDark]);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -213,10 +240,9 @@ export default function Charges() {
         value: p.total,
         color: PIE_COLORS[idx % PIE_COLORS.length],
       })),
-      ...(reste > 0 ? [{ name: 'Autres', fullName: 'Autres', value: reste, color: 'rgba(0,0,0,0.25)' }] : []),
+      ...(reste > 0 ? [{ name: 'Autres', fullName: 'Autres', value: reste, color: isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.25)' }] : []),
     ];
 
-    // ✅ En mode GLOBAL : on évite des jauges "mensuelles" incohérentes
     const jaugeChargesPct = !isGlobal && maxChargesMois
       ? Math.min((totalChargesMois / maxChargesMois) * 100, 100)
       : 0;
@@ -244,21 +270,22 @@ export default function Charges() {
       notifications,
       mode: data?.periode?.mode || (isGlobal ? 'global' : 'month'),
     };
-  }, [data, isGlobal]);
+  }, [data, isGlobal, isDark]);
 
+  // Tooltip custom pour l'AreaChart
   const ChartTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     const v = payload[0]?.value ?? 0;
     return (
       <div
         style={{
-          backgroundColor: 'rgba(0,0,0,0.85)',
-          border: '1px solid rgba(255,255,255,0.15)',
+          backgroundColor: ui.tooltipBg,
+          border: `1px solid ${ui.tooltipBorder}`,
           borderRadius: 10,
           padding: 10,
         }}
       >
-        <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>{label}</div>
+        <div style={{ color: ui.textSecondary, fontSize: 12 }}>{label}</div>
         <div style={{ color: '#fff', fontWeight: 900, marginTop: 4 }}>{formatAr(v)}</div>
       </div>
     );
@@ -268,7 +295,7 @@ export default function Charges() {
     return (
       <div style={{ minHeight: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
         <Spin tip="Chargement des charges..." />
-        <Text type="secondary">Récupération des dernières données</Text>
+        <Text style={{ color: ui.textSecondary }}>Récupération des dernières données</Text>
       </div>
     );
   }
@@ -296,8 +323,7 @@ export default function Charges() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>Charges</Title>
-        
+          <Title level={3} style={{ margin: 0, color: ui.textPrimary }}>Charges</Title>
           <div style={{ marginTop: 6 }}>
             <Tag color={isGlobal ? 'green' : 'blue'} style={{ borderRadius: 999, margin: 0 }}>
               {periodeLabel}
@@ -408,7 +434,7 @@ export default function Charges() {
       )}
 
       <Row gutter={[isMobile ? 16 : 24, isMobile ? 16 : 24]}>
-        {/* HERO KPI */}
+        {/* HERO KPI (inchangé, déjà en blanc) */}
         <Col span={24}>
           <Card
             bordered={false}
@@ -520,9 +546,7 @@ export default function Charges() {
                   </Text>
 
                   {isGlobal ? (
-                    <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
-                      (non applicable en GLOBAL)
-                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>(non applicable en GLOBAL)</div>
                   ) : (
                     <Progress
                       type="circle"
@@ -584,14 +608,21 @@ export default function Charges() {
 
         {/* Graph mensuel */}
         <Col xs={24} lg={12}>
-          <Card bordered={false} style={{ borderRadius: 20, boxShadow: '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)' }}>
+          <Card
+            bordered={false}
+            style={{
+              borderRadius: 20,
+              boxShadow: '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)',
+              background: ui.cardBg,
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <Title level={5} style={{ marginBottom: 4 }}>Évolution des charges</Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>Montant par mois (historique).</Text>
+                <Title level={5} style={{ marginBottom: 4, color: ui.textPrimary }}>Évolution des charges</Title>
+                <Text style={{ fontSize: 12, color: ui.textSecondary }}>Montant par mois (historique).</Text>
               </div>
               <AntTooltip title="Axe Y en format compact, survol = montant complet">
-                <InfoCircleOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />
+                <InfoCircleOutlined style={{ color: ui.textTertiary }} />
               </AntTooltip>
             </div>
 
@@ -605,8 +636,15 @@ export default function Charges() {
                     </linearGradient>
                   </defs>
 
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} interval={isMobile ? 'preserveStartEnd' : 0} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={ui.split} />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    interval={isMobile ? 'preserveStartEnd' : 0}
+                    tick={{ fontSize: 11, fill: ui.textSecondary }}
+                  />
                   <YAxis
                     width={90}
                     tickLine={false}
@@ -614,7 +652,7 @@ export default function Charges() {
                     tickMargin={8}
                     allowDecimals={false}
                     tickFormatter={formatArAxis}
-                    tick={{ fontSize: 11, fill: 'rgba(0,0,0,0.60)' }}
+                    tick={{ fontSize: 11, fill: ui.textSecondary }}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="montant" stroke="#00ABC9" strokeWidth={2} fill="url(#chargesArea)" />
@@ -626,14 +664,21 @@ export default function Charges() {
 
         {/* Donut catégories */}
         <Col xs={24} lg={12}>
-          <Card bordered={false} style={{ borderRadius: 20, boxShadow: '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)' }}>
+          <Card
+            bordered={false}
+            style={{
+              borderRadius: 20,
+              boxShadow: '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)',
+              background: ui.cardBg,
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div>
-                <Title level={5} style={{ marginBottom: 4 }}>Répartition des charges par catégorie</Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>Top catégories + “Autres”.</Text>
+                <Title level={5} style={{ marginBottom: 4, color: ui.textPrimary }}>Répartition des charges par catégorie</Title>
+                <Text style={{ fontSize: 12, color: ui.textSecondary }}>Top catégories + “Autres”.</Text>
               </div>
               <AntTooltip title="Total charges (centre du donut)">
-                <InfoCircleOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />
+                <InfoCircleOutlined style={{ color: ui.textTertiary }} />
               </AntTooltip>
             </div>
 
@@ -660,7 +705,7 @@ export default function Charges() {
                     y="50%"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    style={{ fontSize: 14, fontWeight: 900, fill: 'rgba(0,0,0,0.82)' }}
+                    style={{ fontSize: 14, fontWeight: 900, fill: ui.textPrimary }}
                   >
                     {formatAr(derived.totalGlobal)}
                   </text>
@@ -670,7 +715,7 @@ export default function Charges() {
                     dy={18}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    style={{ fontSize: 12, fill: 'rgba(0,0,0,0.45)' }}
+                    style={{ fontSize: 12, fill: ui.textSecondary }}
                   >
                     Total
                   </text>
@@ -681,8 +726,11 @@ export default function Charges() {
                       const it = derived.partnersPie.find((x) => x.name === label);
                       return it?.fullName || label;
                     }}
+                    contentStyle={ui.rechartsTooltip}
+                    itemStyle={{ color: ui.textPrimary }}
+                    labelStyle={{ color: ui.textSecondary }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ color: ui.textSecondary }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -691,12 +739,18 @@ export default function Charges() {
 
         {/* Liste par partenaire */}
         <Col span={24}>
-          <Card bordered={false} style={{ borderRadius: 20, boxShadow: '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)' }}>
+          <Card
+            bordered={false}
+            style={{
+              borderRadius: 20,
+              boxShadow: '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)',
+              background: ui.cardBg,
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <div>
-                <Title level={5} style={{ marginBottom: 4 }}>Charges par catégorie</Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                </Text>
+                <Title level={5} style={{ marginBottom: 4, color: ui.textPrimary }}>Charges par catégorie</Title>
+                <Text style={{ fontSize: 12, color: ui.textSecondary }} />
               </div>
               <Tag color="blue" style={{ borderRadius: 999 }}>
                 {derived.totalPartenaires} catégories
@@ -705,18 +759,18 @@ export default function Charges() {
 
             <Row gutter={[16, 12]} style={{ marginTop: 16 }}>
               <Col xs={24} md={12}>
-                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>Total charges ({isGlobal ? 'global' : 'mois'})</Text>
-                <div style={{ fontSize: 24, fontWeight: 900 }}>{formatAr(derived.totalGlobal)}</div>
+                <Text style={{ fontSize: 12, color: ui.textSecondary }}>Total charges ({isGlobal ? 'global' : 'mois'})</Text>
+                <div style={{ fontSize: 24, fontWeight: 900, color: ui.textPrimary }}>{formatAr(derived.totalGlobal)}</div>
               </Col>
               <Col xs={24} md={12}>
-                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>Nombre de catégories</Text>
-                <div style={{ fontSize: 22, fontWeight: 900 }}>{derived.totalPartenaires}</div>
+                <Text style={{ fontSize: 12, color: ui.textSecondary }}>Nombre de catégories</Text>
+                <div style={{ fontSize: 22, fontWeight: 900, color: ui.textPrimary }}>{derived.totalPartenaires}</div>
               </Col>
             </Row>
 
             <div style={{ marginTop: 16 }}>
               {derived.parPartenaire.length === 0 && (
-                <Text type="secondary" style={{ fontSize: 13 }}>
+                <Text style={{ fontSize: 13, color: ui.textSecondary }}>
                   Aucun résultat trouvé avec les filtres actuels.
                 </Text>
               )}
@@ -730,14 +784,14 @@ export default function Charges() {
                     key={`${p.partner}-${index}`}
                     style={{
                       padding: '10px 0',
-                      borderBottom: index === derived.parPartenaire.length - 1 ? 'none' : '1px solid rgba(0,0,0,0.04)',
+                      borderBottom: index === derived.parPartenaire.length - 1 ? 'none' : `1px solid ${ui.split}`,
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}>
-                      <Text style={{ fontSize: 13 }}>
+                      <Text style={{ fontSize: 13, color: ui.textPrimary }}>
                         {p.partner?.length > 34 ? `${p.partner.slice(0, 32)}…` : p.partner}
                       </Text>
-                      <Text strong style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+                      <Text strong style={{ fontSize: 13, whiteSpace: 'nowrap', color: ui.textPrimary }}>
                         {formatAr(montant)}
                       </Text>
                     </div>
@@ -747,10 +801,10 @@ export default function Charges() {
                         percent={Math.max(ratio, 1)}
                         showInfo={false}
                         strokeColor="#6BC6FF"
-                        trailColor="rgba(0,0,0,0.06)"
+                        trailColor={isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)'}
                         size="small"
                       />
-                      <Text type="secondary" style={{ fontSize: 12, minWidth: 46 }}>
+                      <Text style={{ fontSize: 12, minWidth: 46, color: ui.textSecondary }}>
                         {ratio.toFixed(0)}%
                       </Text>
                     </div>

@@ -26,12 +26,33 @@ import {
 const { Text } = Typography;
 
 const cleanBase = (s) => (s || "").replace(/\/+$/, "");
-const API_BASE =
-  cleanBase(process.env.REACT_APP_API_BASE) ;
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE);
 
-const COMPTA_PREFIX = "__COMPTA__"; // ✅ sert à distinguer les docs compta
+const COMPTA_PREFIX = "__COMPTA__";
 
-export default function ImportFactures() {
+export default function ImportFactures({ mode = "light" }) {
+  const isDark = mode === "dark";
+
+  // ✅ Palette inline (sans CSS)
+  const ui = useMemo(() => {
+    const textPrimary = isDark ? "rgba(255,255,255,0.88)" : "rgba(0,0,0,0.88)";
+    const textSecondary = isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.45)";
+    const cardBg = isDark ? "rgba(255,255,255,0.04)" : "#fff";
+    const border = isDark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(0,0,0,0.06)";
+    const shadow = isDark
+      ? "0 18px 45px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.40)"
+      : "0 18px 45px rgba(15,23,42,0.10), 0 0 1px rgba(15,23,42,0.08)";
+
+    return {
+      textPrimary,
+      textSecondary,
+      cardBg,
+      border,
+      shadow,
+      link: isDark ? "rgba(105,192,255,1)" : undefined,
+    };
+  }, [isDark]);
+
   const [fileList, setFileList] = useState([]);
   const [uploading, setUploading] = useState(false);
 
@@ -41,7 +62,6 @@ export default function ImportFactures() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all"); // all | facture | compta
 
-  // ✅ user + rôle
   const user = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
@@ -52,7 +72,6 @@ export default function ImportFactures() {
 
   const isAdmin = (user?.role || user?.profil) === "admin";
 
-  // ✅ token pour les routes protégées
   const token = useMemo(() => localStorage.getItem("token"), []);
   const authHeaders = useMemo(() => {
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -88,7 +107,6 @@ export default function ImportFactures() {
     fetchServerFiles();
   }, [fetchServerFiles]);
 
-  // ✅ renommer un File (pour préfixer COMPTA)
   const prefixFile = (originFileObj, prefix) => {
     const f = originFileObj;
     return new File([f], `${prefix}${f.name}`, {
@@ -97,7 +115,6 @@ export default function ImportFactures() {
     });
   };
 
-  // ✅ docType: "facture" | "compta"
   const handleSend = async (docType = "facture") => {
     if (fileList.length === 0) {
       message.warning("Ajoutez au moins un fichier");
@@ -113,15 +130,13 @@ export default function ImportFactures() {
       setUploading(true);
 
       const formData = new FormData();
-      formData.append("docType", docType); // (optionnel) si ton backend veut lire le type
+      formData.append("docType", docType);
 
       fileList.forEach((file) => {
         const origin = file.originFileObj;
         if (!origin) return;
 
-        const toSend =
-          docType === "compta" ? prefixFile(origin, COMPTA_PREFIX) : origin;
-
+        const toSend = docType === "compta" ? prefixFile(origin, COMPTA_PREFIX) : origin;
         formData.append("files", toSend);
       });
 
@@ -202,8 +217,16 @@ export default function ImportFactures() {
   }, [serverFiles, search, typeFilter]);
 
   return (
-    <Card style={{ borderRadius: 16 }}>
-      <Text style={{ display: "block", marginBottom: 12 }}>
+    <Card
+      bordered={false}
+      style={{
+        borderRadius: 16,
+        background: ui.cardBg,
+        border: ui.border,
+        boxShadow: ui.shadow,
+      }}
+    >
+      <Text style={{ display: "block", marginBottom: 12, color: ui.textPrimary }}>
         Sélectionnez vos documents, puis cliquez sur <b>Envoyer</b>.
       </Text>
 
@@ -220,7 +243,6 @@ export default function ImportFactures() {
       </Upload>
 
       <Space style={{ marginTop: 16 }} wrap>
-        {/* ✅ bouton facture (pour tous) */}
         <Button
           type="primary"
           icon={<CloudUploadOutlined />}
@@ -231,7 +253,6 @@ export default function ImportFactures() {
           Envoyer factures
         </Button>
 
-        {/* ✅ bouton compta (admin seulement) */}
         {isAdmin && (
           <Button
             icon={<CloudUploadOutlined />}
@@ -253,20 +274,15 @@ export default function ImportFactures() {
         </Button>
       </Space>
 
-      <Divider style={{ margin: "16px 0" }} />
+      <Divider style={{ margin: "16px 0", borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)" }} />
 
       <Space style={{ width: "100%", justifyContent: "space-between" }} wrap>
-        <Text style={{ fontWeight: 600 }}>Fichiers déjà importés</Text>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={fetchServerFiles}
-          loading={loadingServerFiles}
-        >
+        <Text style={{ fontWeight: 600, color: ui.textPrimary }}>Fichiers déjà importés</Text>
+        <Button icon={<ReloadOutlined />} onClick={fetchServerFiles} loading={loadingServerFiles}>
           Rafraîchir
         </Button>
       </Space>
 
-      {/* ✅ filtre type */}
       <div style={{ marginTop: 12 }}>
         <Radio.Group
           value={typeFilter}
@@ -301,18 +317,16 @@ export default function ImportFactures() {
         }}
         renderItem={(item) => {
           const url = `${API_BASE}${item.path}`;
-          const updatedAt = item.updatedAt
-            ? new Date(item.updatedAt).toLocaleString()
-            : null;
+          const updatedAt = item.updatedAt ? new Date(item.updatedAt).toLocaleString() : null;
 
           const docType = getDocType(item.filename);
           const displayName = stripPrefix(item.filename);
 
           const actions = [
-            <a key="open" href={url} target="_blank" rel="noreferrer">
+            <a key="open" href={url} target="_blank" rel="noreferrer" style={{ color: ui.link }}>
               Ouvrir
             </a>,
-            <a key="download" href={url} download>
+            <a key="download" href={url} download style={{ color: ui.link }}>
               Télécharger
             </a>,
           ];
@@ -333,10 +347,7 @@ export default function ImportFactures() {
             );
           } else {
             actions.push(
-              <Tooltip
-                key="locked"
-                title="Suppression réservée aux administrateurs"
-              >
+              <Tooltip key="locked" title="Suppression réservée aux administrateurs">
                 <Button size="small" icon={<LockOutlined />} disabled>
                   Supprimer
                 </Button>
@@ -349,16 +360,22 @@ export default function ImportFactures() {
               <List.Item.Meta
                 title={
                   <Space size={8}>
-                    <span>{displayName}</span>
-                    <Tag>{docType === "compta" ? "Compta" : "Facture"}</Tag>
+                    <span style={{ color: ui.textPrimary }}>{displayName}</span>
+                    <Tag style={{ borderRadius: 999 }}>
+                      {docType === "compta" ? "Compta" : "Facture"}
+                    </Tag>
                   </Space>
                 }
-                description={[
-                  item.size != null ? `Taille: ${formatSize(item.size)}` : null,
-                  updatedAt ? `Modifié: ${updatedAt}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" — ")}
+                description={
+                  <span style={{ color: ui.textSecondary }}>
+                    {[
+                      item.size != null ? `Taille: ${formatSize(item.size)}` : null,
+                      updatedAt ? `Modifié: ${updatedAt}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" — ")}
+                  </span>
+                }
               />
             </List.Item>
           );

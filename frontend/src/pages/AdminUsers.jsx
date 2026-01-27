@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Card,
   Form,
@@ -18,72 +18,90 @@ import {
 } from "antd";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = process.env.REACT_APP_API_BASE;
+const API_BASE = process.env.REACT_APP_API_BASE || "";
+
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
-export default function AdminUsers() {
+export default function AdminUsers({ mode, setMode }) {
   const [form] = Form.useForm();
   const [resetForm] = Form.useForm();
   const navigate = useNavigate();
   const screens = useBreakpoint();
 
+  const isDark = mode === "dark";
+  const ui = useMemo(() => {
+    const textPrimary = isDark ? "rgba(255,255,255,0.88)" : "rgba(0,0,0,0.88)";
+    const textSecondary = isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.45)";
+    const textTertiary = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.35)";
+    const cardBg = isDark ? "rgba(255,255,255,0.04)" : "#fff";
+    const split = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)";
+    const rowSplit = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
+    const shadow = isDark
+      ? "0 18px 45px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.40)"
+      : "0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)";
+    return { textPrimary, textSecondary, textTertiary, cardBg, split, rowSplit, shadow };
+  }, [isDark]);
+
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
-  const [updatingIds, setUpdatingIds] = useState(new Set());
-  const [deletingIds, setDeletingIds] = useState(new Set());
+  const [updatingIds, setUpdatingIds] = useState(() => new Set());
+  const [deletingIds, setDeletingIds] = useState(() => new Set());
   const [users, setUsers] = useState([]);
 
-  // reset password modal
   const [resetOpen, setResetOpen] = useState(false);
   const [resetUser, setResetUser] = useState(null);
   const [resetLoading, setResetLoading] = useState(false);
 
   const token = localStorage.getItem("token");
+
   const me = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
     } catch {
       return null;
     }
-  }, []);
+  }, [token]);
 
-  const apiFetch = async (url, options = {}) => {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        Accept: "application/json",
-        ...(options.headers || {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+  const apiFetch = useCallback(
+    async (url, options = {}) => {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          Accept: "application/json",
+          ...(options.headers || {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
-    if (res.status === 204) return {};
+      if (res.status === 204) return {};
 
-    const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
 
-    if (res.status === 401) {
-      message.error("Session expirée. Reconnectez-vous.");
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      navigate("/login", { replace: true });
-      throw new Error("Non authentifié");
-    }
+      if (res.status === 401) {
+        message.error("Session expirée. Reconnectez-vous.");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/login", { replace: true });
+        throw new Error("Non authentifié");
+      }
 
-    if (res.status === 403) {
-      message.error("Accès refusé (admin requis).");
-      navigate("/dashboard", { replace: true });
-      throw new Error("Accès refusé");
-    }
+      if (res.status === 403) {
+        message.error("Accès refusé (admin requis).");
+        navigate("/dashboard", { replace: true });
+        throw new Error("Accès refusé");
+      }
 
-    if (!res.ok || data.ok === false) {
-      throw new Error(data?.message || "Erreur API");
-    }
+      if (!res.ok || data.ok === false) {
+        throw new Error(data?.message || "Erreur API");
+      }
 
-    return data;
-  };
+      return data;
+    },
+    [token, navigate]
+  );
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoadingList(true);
     try {
       const data = await apiFetch(`${API_BASE}/api/admin/users`);
@@ -95,7 +113,7 @@ export default function AdminUsers() {
     } finally {
       setLoadingList(false);
     }
-  };
+  }, [apiFetch]);
 
   useEffect(() => {
     if (!token) {
@@ -108,8 +126,7 @@ export default function AdminUsers() {
       return;
     }
     fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [token, me, fetchUsers, navigate]);
 
   const onCreate = async (values) => {
     setLoadingCreate(true);
@@ -140,7 +157,12 @@ export default function AdminUsers() {
   };
 
   const setActive = async (userId, isActive) => {
-    setUpdatingIds((prev) => new Set(prev).add(userId));
+    setUpdatingIds((prev) => {
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+
     try {
       await apiFetch(`${API_BASE}/api/admin/users/${userId}/active`, {
         method: "PATCH",
@@ -164,7 +186,12 @@ export default function AdminUsers() {
   };
 
   const deleteUser = async (userId) => {
-    setDeletingIds((prev) => new Set(prev).add(userId));
+    setDeletingIds((prev) => {
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+
     try {
       await apiFetch(`${API_BASE}/api/admin/users/${userId}`, { method: "DELETE" });
       message.success("Utilisateur supprimé");
@@ -211,7 +238,6 @@ export default function AdminUsers() {
     }
   };
 
-  // Responsive: on cache/affiche certaines colonnes selon la taille
   const columns = [
     {
       title: "Email",
@@ -285,7 +311,6 @@ export default function AdminUsers() {
     },
   ];
 
-  // Mobile: cartes ultra lisibles
   const MobileUsersList = () => (
     <List
       loading={loadingList}
@@ -295,17 +320,25 @@ export default function AdminUsers() {
         const isMe = me?.id === u.id;
         return (
           <List.Item style={{ paddingLeft: 0, paddingRight: 0 }}>
-            <Card style={{ width: "100%" }} bodyStyle={{ padding: 12 }}>
+            <Card
+              style={{
+                width: "100%",
+                background: ui.cardBg,
+                boxShadow: ui.shadow,
+                borderColor: ui.split,
+              }}
+              bodyStyle={{ padding: 12 }}
+            >
               <Space direction="vertical" style={{ width: "100%" }} size={6}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
-                    <Text strong style={{ display: "block" }} ellipsis>
+                    <Text strong style={{ display: "block", color: ui.textPrimary }} ellipsis>
                       {u.email}
                     </Text>
-                    <Text type="secondary">{u.name || "-"}</Text>
+                    <Text style={{ color: ui.textSecondary }}>{u.name || "-"}</Text>
                   </div>
                   <div style={{ flexShrink: 0, textAlign: "right" }}>
-                    <Text>{u.role}</Text>
+                    <Text style={{ color: ui.textPrimary }}>{u.role}</Text>
                     <div style={{ marginTop: 6 }}>
                       <Switch
                         checked={!!u.isActive}
@@ -316,7 +349,7 @@ export default function AdminUsers() {
                   </div>
                 </div>
 
-                <Divider style={{ margin: "8px 0" }} />
+                <Divider style={{ margin: "8px 0", borderColor: ui.split }} />
 
                 <Space wrap>
                   <Button size="small" onClick={() => openResetModal(u)}>
@@ -335,7 +368,7 @@ export default function AdminUsers() {
                     </Button>
                   </Popconfirm>
 
-                  {isMe ? <Text type="secondary">(vous)</Text> : null}
+                  {isMe ? <Text style={{ color: ui.textTertiary }}>(vous)</Text> : null}
                 </Space>
               </Space>
             </Card>
@@ -345,17 +378,23 @@ export default function AdminUsers() {
     />
   );
 
-  const isMobile = !screens.md; // xs/sm => mobile
+  const isMobile = !screens.md;
 
   return (
     <Space direction="vertical" style={{ width: "100%" }} size={16}>
-      <Card>
-        <Title level={4} style={{ marginTop: 0 }}>
-          Admin — Créer un utilisateur
-        </Title>
-        <Text type="secondary">
-          Vous devez être connecté avec un compte <b>admin</b>.
-        </Text>
+      <Card style={{ background: ui.cardBg, boxShadow: ui.shadow, borderColor: ui.split }}>
+        <Space style={{ width: "100%", justifyContent: "space-between" }} align="center">
+          <div>
+            <Title level={4} style={{ marginTop: 0, marginBottom: 0, color: ui.textPrimary }}>
+              Admin — Créer un utilisateur
+            </Title>
+            <Text style={{ color: ui.textSecondary }}>
+              Vous devez être connecté avec un compte <b>admin</b>.
+            </Text>
+          </div>
+
+        
+        </Space>
 
         <Form
           form={form}
@@ -366,19 +405,19 @@ export default function AdminUsers() {
           initialValues={{ role: "user" }}
         >
           <Form.Item
-            label="Email"
+            label={<span style={{ color: ui.textPrimary }}>Email</span>}
             name="email"
             rules={[{ required: true, message: "Email requis" }, { type: "email" }]}
           >
             <Input placeholder="user@entreprise.com" />
           </Form.Item>
 
-          <Form.Item label="Nom" name="name">
+          <Form.Item label={<span style={{ color: ui.textPrimary }}>Nom</span>} name="name">
             <Input placeholder="Nom (optionnel)" />
           </Form.Item>
 
           <Form.Item
-            label="Mot de passe"
+            label={<span style={{ color: ui.textPrimary }}>Mot de passe</span>}
             name="password"
             rules={[
               { required: true, message: "Mot de passe requis" },
@@ -390,7 +429,7 @@ export default function AdminUsers() {
           </Form.Item>
 
           <Form.Item
-            label="Confirmer le mot de passe"
+            label={<span style={{ color: ui.textPrimary }}>Confirmer le mot de passe</span>}
             name="confirmPassword"
             dependencies={["password"]}
             hasFeedback
@@ -407,7 +446,7 @@ export default function AdminUsers() {
             <Input.Password placeholder="Confirmer" />
           </Form.Item>
 
-          <Form.Item label="Rôle" name="role">
+          <Form.Item label={<span style={{ color: ui.textPrimary }}>Rôle</span>} name="role">
             <Select
               options={[
                 { value: "user", label: "Utilisateur" },
@@ -416,13 +455,31 @@ export default function AdminUsers() {
             />
           </Form.Item>
 
-          <Button type="primary" htmlType="submit" loading={loadingCreate} block={isMobile}>
-            Créer
-          </Button>
+          {/* ✅ Bouton désactivé si formulaire invalide */}
+          <Form.Item shouldUpdate>
+            {() => (
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loadingCreate}
+                block={isMobile}
+                disabled={
+                  loadingCreate ||
+                  !form.isFieldsTouched(true) ||
+                  form.getFieldsError().some(({ errors }) => errors.length)
+                }
+              >
+                Créer
+              </Button>
+            )}
+          </Form.Item>
         </Form>
       </Card>
 
-      <Card title="Utilisateurs" loading={false}>
+      <Card
+        title={<span style={{ color: ui.textPrimary }}>Utilisateurs</span>}
+        style={{ background: ui.cardBg, boxShadow: ui.shadow, borderColor: ui.split }}
+      >
         {isMobile ? (
           <MobileUsersList />
         ) : (
@@ -432,7 +489,6 @@ export default function AdminUsers() {
             columns={columns}
             loading={loadingList}
             pagination={{ pageSize: 10, showSizeChanger: true }}
-            // important pour la responsivité desktop
             scroll={{ x: "max-content" }}
             size="middle"
           />
@@ -453,6 +509,7 @@ export default function AdminUsers() {
         onOk={confirmResetPassword}
         okText="Enregistrer"
         confirmLoading={resetLoading}
+        destroyOnClose
       >
         <Form form={resetForm} layout="vertical" requiredMark={false}>
           <Form.Item
