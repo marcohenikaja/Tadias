@@ -199,8 +199,8 @@ export default function AccueilPro() {
             <Space size={12} align="center">
               <div
                 style={{
-                  width: 46,
-                  height: 46,
+                  width: 76,
+                  height: 76,
                   borderRadius: 12,
                   overflow: "hidden",
                   border: `1px solid ${brand.border}`,
