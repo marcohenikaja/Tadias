@@ -38,7 +38,7 @@ const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const cleanBase = (s) => (s || '').replace(/\/+$/, '');
-const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) || 'http://localhost:8000';
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
 
 
 const COLORS = ['#13c2c2', '#722ed1', '#52c41a', '#faad14', '#ff7875', '#1890ff'];
