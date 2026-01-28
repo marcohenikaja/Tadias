@@ -979,6 +979,31 @@ function ChargesPieResponsive({ derived, formatMontantAbs }) {
     </div>
   );
 }
+const mobileStack = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 16,
+  width: '100%',
+};
+
+const mobileCenterBlock = {
+  width: '100%',
+  display: 'flex',
+  justifyContent: 'center',
+};
+
+const mobileFrame = {
+  padding: 10,
+  borderRadius: 18,
+  background:
+    'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), rgba(255,255,255,0.02) 55%, rgba(0,0,0,0) 100%)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'inline-flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+};
+
 
 
 export default function Dashboard({ mode = 'light' }) {
@@ -1408,19 +1433,23 @@ export default function Dashboard({ mode = 'light' }) {
     gap: isMobile ? 16 : 12,
     alignItems: 'center',
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1.05fr 1.05fr',
+    justifyItems: isMobile ? 'center' : 'stretch', // ✅ centre les enfants sur mobile
   };
 
-  const gaugeFrame = {
-  padding: 10,
-  borderRadius: 18,
-  background:
-    'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), rgba(255,255,255,0.02) 55%, rgba(0,0,0,0) 100%)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  // ✅ mobile: centre le bloc lui-même
-  ...(isMobile ? { marginLeft: 'auto', marginRight: 'auto', width: 'fit-content' } : {}),
-};
 
-const dialWrap = { display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' };
+  const gaugeFrame = {
+    padding: 10,
+    borderRadius: 18,
+    background:
+      'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), rgba(255,255,255,0.02) 55%, rgba(0,0,0,0) 100%)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    display: 'inline-flex',          // ✅ shrink à la taille du contenu
+    justifyContent: 'center',
+    alignItems: 'center',
+  };
+
+
+  const dialWrap = { display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' };
 
 
   const dialCaption = {
@@ -1681,86 +1710,145 @@ const dialWrap = { display: 'flex', justifyContent: 'center', alignItems: 'cente
                 <br />
                 <br />
 
-                <div style={clusterGrid}>
-                  {/* CA */}
-                  <div>
-                    <div style={dialWrap}>
-                      <div style={gaugeFrame}>
-                        <Row justify="center" align="middle">
-                          <Col xs={24} sm={24} md={24} style={{ display: 'flex', justifyContent: 'center' }}>
-                            <div style={{ width: '100%', maxWidth: isMobile ? 230 : 'none' }}>
-                              <DarkDialGauge
-                                value={derived.caMois}
-                                max="auto"
-                                size={isMobile ? 230 : 440}   // desktop inchangé
-                                bottomValue={formatMontantAbs(derived.caMois)}
-                                subtitle={isGlobal ? 'CA global' : 'CA du mois'}
-                                blueGlow
-                                accentColor="#2f6fed"
-                                needleColor="#2f6fed"
-                                showProgress
-                              />
-                            </div>
-                          </Col>
-                        </Row>
-
-
-                      </div>
-                    </div>
-                    <div style={dialCaption}>
-                      {isGlobal ? 'Période précédente:' : 'Mois précédent:'}{' '}
-                      <span style={{ ...mono, fontWeight: 900 }}>{formatMontantAbs(derived.caMoisPrec)}</span>
-                    </div>
-                  </div>
-
-                  {/* Enc/Dec */}
-                  <div style={rightStack}>
-                    <div style={gaugeFrame}>
-                      <FlowVerticalGauge
-                        label="Encaissements"
-                        value={derived.enc}
-                        color="#52c41a"
-                        formatMontantAbs={formatMontantAbs}
-                        isMobile={isMobile}
-                        invertFill={false}
-                        invertShape={false}
-                      />
-                    </div>
-
-                    <div style={gaugeFrame}>
-                      <FlowVerticalGauge
-                        label="Décaissements"
-                        value={derived.dec}
-                        color="#ff4d4f"
-                        formatMontantAbs={formatMontantAbs}
-                        isMobile={isMobile}
-                        invertFill={false}
-                        invertShape={true}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cash */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      <div style={gaugeFrame}>
-                        <CashCarGauge
-                          cashDisponible={derived.cashDisponible}
-                          formatMontantSigned={formatMontantSigned}
-                          isMobile={isMobile}
+                {isMobile ? (
+                  <div style={mobileStack}>
+                    {/* CA */}
+                    <div style={mobileCenterBlock}>
+                      <div style={mobileFrame}>
+                        <DarkDialGauge
+                          value={derived.caMois}
+                          max="auto"
+                          size={230}
+                          bottomValue={formatMontantAbs(derived.caMois)}
+                          subtitle={isGlobal ? 'CA global' : 'CA du mois'}
+                          blueGlow
+                          accentColor="#2f6fed"
+                          needleColor="#2f6fed"
+                          showProgress
                         />
                       </div>
                     </div>
 
-                    <div style={{ marginTop: 10, gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                      <MiniScreen
-                        label="VOYANT"
-                        value={derived.voyantText}
-                        tone={derived.voyantText === 'ALERTE' ? 'danger' : derived.voyantText === 'VIGILANCE' ? 'warn' : 'success'}
-                      />
+                    {/* Encaissements */}
+                    <div style={mobileCenterBlock}>
+                      <div style={{ ...mobileFrame, width: 'min(360px, 100%)' }}>
+                        <FlowVerticalGauge
+                          label="Encaissements"
+                          value={derived.enc}
+                          color="#52c41a"
+                          formatMontantAbs={formatMontantAbs}
+                          isMobile={true}
+                          invertFill={false}
+                          invertShape={false}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Décaissements */}
+                    <div style={mobileCenterBlock}>
+                      <div style={{ ...mobileFrame, width: 'min(360px, 100%)' }}>
+                        <FlowVerticalGauge
+                          label="Décaissements"
+                          value={derived.dec}
+                          color="#ff4d4f"
+                          formatMontantAbs={formatMontantAbs}
+                          isMobile={true}
+                          invertFill={false}
+                          invertShape={true}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Cash */}
+                    <div style={mobileCenterBlock}>
+                      <div style={mobileFrame}>
+                        <CashCarGauge
+                          cashDisponible={derived.cashDisponible}
+                          formatMontantSigned={formatMontantSigned}
+                          isMobile={true}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div style={clusterGrid}>
+                    {/* CA */}
+                    <div style={isMobile ? { justifySelf: 'center' } : undefined}>
+                      <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                        <div style={gaugeFrame}>
+                          <DarkDialGauge
+                            value={derived.caMois}
+                            max="auto"
+                            size={isMobile ? 230 : 440}
+                            bottomValue={formatMontantAbs(derived.caMois)}
+                            subtitle={isGlobal ? 'CA global' : 'CA du mois'}
+                            blueGlow
+                            accentColor="#2f6fed"
+                            needleColor="#2f6fed"
+                            showProgress
+                          />
+                        </div>
+
+                      </div>
+
+                      <div style={dialCaption}>
+                        {isGlobal ? 'Période précédente:' : 'Mois précédent:'}{' '}
+                        <span style={{ ...mono, fontWeight: 900 }}>{formatMontantAbs(derived.caMoisPrec)}</span>
+                      </div>
+                    </div>
+
+                    {/* Enc/Dec */}
+                    <div style={rightStack}>
+                      <div style={gaugeFrame}>
+                        <FlowVerticalGauge
+                          label="Encaissements"
+                          value={derived.enc}
+                          color="#52c41a"
+                          formatMontantAbs={formatMontantAbs}
+                          isMobile={isMobile}
+                          invertFill={false}
+                          invertShape={false}
+                        />
+                      </div>
+
+                      <div style={gaugeFrame}>
+                        <FlowVerticalGauge
+                          label="Décaissements"
+                          value={derived.dec}
+                          color="#ff4d4f"
+                          formatMontantAbs={formatMontantAbs}
+                          isMobile={isMobile}
+                          invertFill={false}
+                          invertShape={true}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Cash */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div style={gaugeFrame}>
+                          <CashCarGauge
+                            cashDisponible={derived.cashDisponible}
+                            formatMontantSigned={formatMontantSigned}
+                            isMobile={isMobile}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: 10, gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                        <MiniScreen
+                          label="VOYANT"
+                          value={derived.voyantText}
+                          tone={derived.voyantText === 'ALERTE' ? 'danger' : derived.voyantText === 'VIGILANCE' ? 'warn' : 'success'}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
+
               </div>
             </div>
           </Card>
