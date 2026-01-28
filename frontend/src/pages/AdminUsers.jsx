@@ -18,7 +18,8 @@ import {
 } from "antd";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "";
+const cleanBase = (s) => (s || '').replace(/\/+$/, '');
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;

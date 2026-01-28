@@ -18,7 +18,8 @@ dayjs.locale('fr');
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
-const API_BASE = process.env.REACT_APP_API_BASE;
+const cleanBase = (s) => (s || '').replace(/\/+$/, '');
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
 
 export default function Tresorerie({ mode = "light" }) {
   const screens = useBreakpoint();

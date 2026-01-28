@@ -36,7 +36,8 @@ dayjs.locale('fr');
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
-const API_BASE = process.env.REACT_APP_API_BASE;
+const cleanBase = (s) => (s || '').replace(/\/+$/, '');
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
 
 export default function ImportsManager({ mode = "light" }) {
   const isDark = mode === "dark";

@@ -6,9 +6,8 @@ const { Dragger } = Upload;
 const { Title, Text } = Typography;
 
 // ✅ API_BASE (CRA)
-const cleanBase = (s) => (s || "").replace(/\/+$/, "");
-const API_BASE =
-  cleanBase(process.env.REACT_APP_API_BASE) || "http://localhost:8000";
+const cleanBase = (s) => (s || '').replace(/\/+$/, '');
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
 
 export default function ImportExcel() {
   const propsUpload = {
