@@ -86,6 +86,36 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
   const isMobile = !screens.md;
   const siderCollapsed = isMobile;
 
+  const [showWhatsapp, setShowWhatsapp] = React.useState(true);
+
+
+  React.useEffect(() => {
+    if (!isMobile) return;
+
+    let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // on cache quand on descend, on montre quand on remonte
+      if (currentScrollY > lastScrollY && currentScrollY > 80) {
+        setShowWhatsapp(false);
+      } else {
+        setShowWhatsapp(true);
+      }
+
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isMobile]);
+
+
+
   // ✅ user depuis localStorage
   const user = useMemo(() => {
     try {
@@ -216,94 +246,142 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
           />
 
           {/* Bottom user card + logout */}
-          <div style={{ marginTop: 'auto', padding: 14 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: 12,
-                borderRadius: 14,
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.06)',
-              }}
-            >
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 999,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'linear-gradient(135deg,#13c2c2,#722ed1)',
-                }}
-              >
-                <UserOutlined
+          <div style={{ marginTop: 'auto', padding: 12 }}>
+            {isMobile ? (
+              <>
+                {/* User card mobile */}
+                <div
                   style={{
-                    fontSize: 18,
-                    lineHeight: 1,
-                    display: 'block',
-                  }}
-                />
-
-              </div>
-
-              <div style={{ overflow: 'hidden', minWidth: 0 }}>
-                <Text
-                  style={{
-                    display: 'block',
-                    color: '#fff',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: 12,
+                    borderRadius: 16,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  {displayName}
-                </Text>
-                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>{displayRole}</Text>
-              </div>
-            </div>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg,#13c2c2,#722ed1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <UserOutlined style={{ fontSize: 20, color: '#fff' }} />
+                  </div>
 
-            {isMobile ? (
-              <Button
-                danger
-                icon={<LogoutOutlined />}
-                onClick={handleLogout}
-                style={{
-                  marginTop: 10,
-                  width: 40,
-                  height: 40,
-                  padding: 0,
-                  borderRadius: 999,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'rgba(255,77,79,0.10)',
-                  borderColor: 'rgba(255,77,79,0.35)',
-                }}
-              />
+                  {/* <div style={{ textAlign: 'center', maxWidth: '100%' }}>
+                    <Text
+                      style={{
+                        display: 'block',
+                        color: '#fff',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: 120,
+                      }}
+                    >
+                      {displayName}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+                      {displayRole}
+                    </Text>
+                  </div> */}
+                </div>
+
+                {/* Logout mobile */}
+                <Button
+                  danger
+                  icon={<LogoutOutlined />}
+                  onClick={handleLogout}
+                  style={{
+                    marginTop: 10,
+                    width: '100%',
+                    height: 44,
+                    borderRadius: 999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(255,77,79,0.12)',
+                    borderColor: 'rgba(255,77,79,0.35)',
+                  }}
+                />
+              </>
             ) : (
-              <Button
-                danger
-                icon={<LogoutOutlined />}
-                onClick={handleLogout}
-                style={{
-                  marginTop: 10,
-                  width: '100%',
-                  borderRadius: 12,
-                  background: 'rgba(255,77,79,0.10)',
-                  borderColor: 'rgba(255,77,79,0.35)',
-                  color: '#ff4d4f',
-                }}
-              >
-                Déconnexion
-              </Button>
-            )}
+              <>
+                {/* Desktop (TON CODE ACTUEL, inchangé) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 12,
+                    borderRadius: 14,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 999,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'linear-gradient(135deg,#13c2c2,#722ed1)',
+                    }}
+                  >
+                    <UserOutlined style={{ fontSize: 18, color: '#fff' }} />
+                  </div>
 
+                  <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                    <Text
+                      style={{
+                        display: 'block',
+                        color: '#fff',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {displayName}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>
+                      {displayRole}
+                    </Text>
+                  </div>
+                </div>
+
+                <Button
+                  danger
+                  icon={<LogoutOutlined />}
+                  onClick={handleLogout}
+                  style={{
+                    marginTop: 10,
+                    width: '100%',
+                    borderRadius: 12,
+                    background: 'rgba(255,77,79,0.10)',
+                    borderColor: 'rgba(255,77,79,0.35)',
+                    color: '#ff4d4f',
+                  }}
+                >
+                  Déconnexion
+                </Button>
+              </>
+            )}
           </div>
+
         </div>
       </Sider>
 
@@ -353,49 +431,59 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
           </div>
         </Content>
       </Layout>
-      <a
-        href="https://wa.me/261382308971?text=Bonjour%20j%27ai%20besoin%20d%27aide%20sur%20TADIAS"
-        target="_blank"
-        rel="noreferrer"
-        style={{
-          position: "fixed",
-          right: 18,
-          bottom: 18,
-          zIndex: 9999,
-          textDecoration: "none",
-        }}
-      >
-        <div
+      {(!isMobile || showWhatsapp) && (
+        <a
+          href="https://wa.me/261382308971?text=Bonjour%20j%27ai%20besoin%20d%27aide%20sur%20TADIAS"
+          target="_blank"
+          rel="noreferrer"
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 12px",
-            borderRadius: 999,
-            background: "rgba(255,255,255,0.92)",
-            boxShadow: "0 14px 40px rgba(0,0,0,0.22)",
-            border: "1px solid rgba(0,0,0,0.06)",
+            position: 'fixed',
+            right: 18,
+            bottom: 18,
+            zIndex: 9999,
+            textDecoration: 'none',
+            transition: 'opacity 0.25s ease, transform 0.25s ease',
+            opacity: showWhatsapp ? 1 : 0,
+            transform: showWhatsapp ? 'translateY(0)' : 'translateY(16px)',
           }}
         >
           <div
             style={{
-              width: 44,
-              height: 44,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 12px',
               borderRadius: 999,
-              background: "#25D366",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              background: 'rgba(255,255,255,0.92)',
+              boxShadow: '0 14px 40px rgba(0,0,0,0.22)',
+              border: '1px solid rgba(0,0,0,0.06)',
             }}
           >
-            <WhatsAppOutlined style={{ color: "#fff", fontSize: 22 }} />
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 999,
+                background: '#25D366',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <WhatsAppOutlined style={{ color: '#fff', fontSize: 22 }} />
+            </div>
+            {!isMobile && (
+              <div style={{ lineHeight: 1.1 }}>
+                <div style={{ fontWeight: 800, color: '#0b1220' }}>Support WhatsApp</div>
+                <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.55)' }}>
+                  Réponse rapide
+                </div>
+              </div>
+            )}
           </div>
-          <div style={{ lineHeight: 1.1 }}>
-            <div style={{ fontWeight: 800, color: "#0b1220" }}>Support WhatsApp</div>
-            <div style={{ fontSize: 12, color: "rgba(0,0,0,0.55)" }}>Réponse rapide</div>
-          </div>
-        </div>
-      </a>
+        </a>
+      )}
+
 
     </Layout>
   );

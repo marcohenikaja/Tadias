@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import React, { useEffect, useState, useMemo, useCallback, useRef, useId } from 'react';
 import {
   Row,
@@ -38,8 +39,7 @@ const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const cleanBase = (s) => (s || '').replace(/\/+$/, '');
-const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
-
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE);
 
 const COLORS = ['#13c2c2', '#722ed1', '#52c41a', '#faad14', '#ff7875', '#1890ff'];
 
@@ -120,27 +120,64 @@ const topArcSvg = {
   opacity: 0.9,
 };
 
+/* =========================================================
+   ✅ Hook largeur container (toujours appelé, jamais conditionnel)
+   ========================================================= */
+function useContainerWidth() {
+  const ref = useRef(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver((entries) => {
+      const w = entries?.[0]?.contentRect?.width || 0;
+      setWidth(w);
+    });
+
+    ro.observe(el);
+    setWidth(el.getBoundingClientRect().width || 0);
+
+    return () => ro.disconnect();
+  }, []);
+
+  return [ref, width];
+}
 
 
-const cockpitRow = {
-  display: 'flex',
-  gap: 12,
-  overflowX: 'auto',
-  paddingBottom: 8,
-  scrollSnapType: 'x mandatory',
-};
 
-const cockpitItem = {
-  flex: '0 0 auto',
-  scrollSnapAlign: 'start',
-};
+function ResponsiveCaDial({ value, bottomValue, subtitle, isMobile }) {
+  const [ref, w] = useContainerWidth();
 
+  // Desktop inchangé
+  const size = React.useMemo(() => {
+    if (!isMobile) return 440;
+    // Mobile: on prend la largeur du container - marge, bornée
+    const available = Math.max(240, (w || 0) - 24); // 24 = padding/respiration
+    return Math.max(240, Math.min(available, 320)); // borne pour rester joli
+  }, [isMobile, w]);
+
+  return (
+    <div ref={ref} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+      <DarkDialGauge
+        value={value}
+        max="auto"
+        size={size}
+        bottomValue={bottomValue}
+        subtitle={subtitle}
+        blueGlow
+        accentColor="#2f6fed"
+        needleColor="#2f6fed"
+        showProgress
+      />
+    </div>
+  );
+}
 
 /**
  * ✅ FuelGaugeCar (design “jauge voiture” + miroir)
  */
-
-
 function FuelGaugeCar({
   value,
   min = 0,
@@ -670,8 +707,10 @@ function FuelGaugeVertical({
   borderColor = 'rgba(255,255,255,0.12)',
   iconColor = '#ffffff',
   invertFill = false,
-  invertShape = false, // ✅ IMPORTANT
+  invertShape = false,
+  isMobile = false, // ✅ AJOUT
 }) {
+
   const p = clamp(Number(pct || 0), 0, 100);
 
   const seg = 12;
@@ -756,12 +795,8 @@ function FuelGaugeVertical({
 
             const t = i / (seg - 1);
 
-            // ✅ normal : large en haut -> petit en bas
             const wNormal = 1 - t * (1 - minRatio);
-
-            // ✅ inversé : petit en haut -> large en bas
             const wInverse = minRatio + t * (1 - minRatio);
-
             const wRatio = invertShape ? wInverse : wNormal;
 
             return (
@@ -800,7 +835,7 @@ function FuelGaugeVertical({
 }
 
 /**
- * ✅ Enc/Dec en jauges verticales (même design que CASH: Jauge)
+ * ✅ Enc/Dec en jauges verticales
  */
 function FlowVerticalGauge({
   label,
@@ -819,10 +854,9 @@ function FlowVerticalGauge({
     <FuelGaugeVertical
       pct={pct}
       height={isMobile ? 260 : 220}
-      width={isMobile ? '100%' : 200}   // ✅ clé : fluide en mobile
+      width={isMobile ? '100%' : 200}
       label={label}
       valueText={formatMontantAbs(v)}
-      stateText={label}
       fillColor={color}
       borderColor={hexToRgba(color, 0.55)}
       iconColor={color}
@@ -833,12 +867,8 @@ function FlowVerticalGauge({
   );
 }
 
-
 /**
- * ✅ CASH estimé en une seule jauge voiture :
- *    - cash >= 0 : encaissement (normal)
- *    - cash < 0 : décaissement (miroir)
- *    - couleurs selon signe (vert/rouge)
+ * ✅ CASH estimé en une seule jauge voiture (miroir si négatif)
  */
 function CashCarGauge({ cashDisponible, formatMontantSigned, isMobile }) {
   const cash = Number(cashDisponible || 0);
@@ -888,378 +918,72 @@ function TrendTag({ trend, invertColors = true }) {
     </Tag>
   );
 }
-function DashboardMobile({
-  periodeLabel,
-  lastUpdatedLabel,
-  loading,
-  fetchDashboard,
-  periode,
-  isGlobal,
-  setIsGlobal,
-  setPeriode,
 
-  derived,
-  filteredAlerts,
-  alertOptions,
-  alertFilter,
-  setAlertFilter,
+/* =========================================================
+   ✅ Pie charges responsive MOBILE (Desktop inchangé + couleurs inchangées)
+   - Desktop: innerRadius=55 / outerRadius=75 (tes valeurs d’origine)
+   - Mobile: calcule selon largeur du container, SANS changer les couleurs
+   ========================================================= */
+function ChargesPieResponsive({ derived, formatMontantAbs }) {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
 
-  formatMontantAbs,
-  formatMontantSigned,
+  const [wrapRef, w] = useContainerWidth();
 
-  openClients,
-  setOpenClients,
-  openFournisseurs,
-  setOpenFournisseurs,
-}) {
-  const cashNegatif = derived.cashDisponible < 0;
+  const DESKTOP_INNER = 55;
+  const DESKTOP_OUTER = 75;
 
-  const card = {
-    borderRadius: 18,
-    boxShadow: '0 12px 30px rgba(15,23,42,0.12),0 0 1px rgba(15,23,42,0.08)',
-  };
+  const cw = Math.max(240, Number(w || 0));
+  const mobileOuter = Math.max(62, Math.min(Math.round(cw * 0.22), 86));
+  const mobileInner = Math.max(40, Math.min(mobileOuter - 22, 64));
 
-  const hero = {
-    borderRadius: 22,
-    color: '#fff',
-    overflow: 'hidden',
-    border: '1px solid rgba(255,255,255,0.10)',
-    background:
-      'radial-gradient(900px 420px at 20% 10%, rgba(47,111,237,0.30) 0%, rgba(47,111,237,0) 60%),' +
-      'radial-gradient(900px 420px at 80% 10%, rgba(0,171,201,0.25) 0%, rgba(0,171,201,0) 60%),' +
-      'linear-gradient(180deg, #0b0f14 0%, #050607 70%, #000 100%)',
-    boxShadow: '0 30px 80px rgba(0,0,0,0.65)',
-  };
-
-  const pillStyle = (tone) => ({
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '5px 10px',
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 800,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background:
-      tone === 'success'
-        ? 'rgba(82,196,26,0.18)'
-        : tone === 'danger'
-          ? 'rgba(255,77,79,0.18)'
-          : tone === 'warn'
-            ? 'rgba(250,173,20,0.18)'
-            : 'rgba(255,255,255,0.06)',
-  });
+  const innerRadius = isMobile ? mobileInner : DESKTOP_INNER;
+  const outerRadius = isMobile ? mobileOuter : DESKTOP_OUTER;
 
   return (
-    <div style={{ padding: 10 }}>
-      {/* HERO */}
-      <Card bordered={false} style={hero} bodyStyle={{ padding: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.1 }}>Tableau de bord</div>
-            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-              {periodeLabel} {lastUpdatedLabel ? `• MAJ ${lastUpdatedLabel}` : ''}
-            </div>
-          </div>
+    <div style={{ height: 170, marginTop: 10, display: 'flex', justifyContent: 'center' }}>
+      <div ref={wrapRef} style={{ width: '100%', maxWidth: 360 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <defs>
+              <linearGradient id="blueGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#6dd5fa" />
+                <stop offset="100%" stopColor="#1e3c72" />
+              </linearGradient>
+            </defs>
 
-          <Button size="small" icon={<ReloadOutlined />} loading={loading} onClick={() => fetchDashboard(periode, 0)}>
-            MAJ
-          </Button>
-        </div>
-
-        {/* Filtres */}
-        <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
-          <DatePicker
-            picker="month"
-            value={isGlobal ? null : periode}
-            allowClear
-            placeholder="Global (toutes les données)"
-            onChange={(v) => {
-              if (!v) {
-                setIsGlobal(true);
-                return;
-              }
-              setIsGlobal(false);
-              setPeriode(v.startOf('month'));
-            }}
-            suffixIcon={<CalendarOutlined />}
-            style={{ width: '100%' }}
-          />
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {alertOptions.map((o) => (
-              <Button
-                key={o.value}
-                size="small"
-                onClick={() => setAlertFilter(o.value)}
-                type={alertFilter === o.value ? 'primary' : 'default'}
-              >
-                {o.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* KPIs */}
-        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 16,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.10)',
-            }}
-          >
-            <div style={{ fontSize: 11, opacity: 0.75 }}>CA</div>
-            <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>{formatMontantAbs(derived.caMois)}</div>
-            <div style={{ marginTop: 8 }}>
-              <span style={pillStyle(derived.diffPositif ? 'success' : 'danger')}>
-                {derived.diffPositif ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-                {Math.abs(derived.pct).toFixed(1)}%
-              </span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 16,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.10)',
-            }}
-          >
-            <div style={{ fontSize: 11, opacity: 0.75 }}>Cash estimé</div>
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 900,
-                marginTop: 6,
-                color: cashNegatif ? '#ff4d4f' : '#52c41a',
-              }}
+            <Pie
+              data={derived.chargesPieData}
+              dataKey="value"
+              cx="50%"
+              cy="50%"
+              innerRadius={innerRadius}
+              outerRadius={outerRadius}
+              paddingAngle={2}
             >
-              {formatMontantSigned(derived.cashDisponible)}
-            </div>
+              {derived.chargesPieData.map((_, index) => (
+                <Cell key={`cell-${index}`} fill="url(#blueGradient)" />
+              ))}
+            </Pie>
 
-            <div style={{ marginTop: 8 }}>
-              <span
-                style={pillStyle(
-                  derived.voyantText === 'ALERTE' ? 'danger' : derived.voyantText === 'VIGILANCE' ? 'warn' : 'success'
-                )}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    background: derived.voyantColor,
-                    display: 'inline-block',
-                    boxShadow: `0 0 10px ${derived.voyantColor}`,
-                    marginRight: 6,
-                  }}
-                />
-                {derived.voyantText}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* CASH Gauge */}
-      <Card bordered={false} style={{ ...card, marginTop: 12 }} bodyStyle={{ padding: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Cash estimé
-          </Text>
-          <AntTooltip title="Estimation basée sur les données comptables disponibles">
-            <InfoCircleOutlined />
-          </AntTooltip>
-        </div>
-
-        <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
-          <CashCarGauge cashDisponible={derived.cashDisponible} formatMontantSigned={formatMontantSigned} isMobile />
-        </div>
-      </Card>
-
-      {/* Enc / Dec (stack propre) */}
-      <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
-        <Card bordered={false} style={card} bodyStyle={{ padding: 12 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Encaissements
-          </Text>
-          <div style={{ marginTop: 10 }}>
-            <FlowVerticalGauge
-              label="Encaissements"
-              value={derived.enc}
-              color="#52c41a"
-              formatMontantAbs={formatMontantAbs}
-              isMobile
-              invertFill={false}
-              invertShape={false}
+            <Tooltip
+              formatter={(value, _name, { payload }) => {
+                const label = payload?.fullName || payload?.name || '';
+                return [formatMontantAbs(value), label];
+              }}
+              labelFormatter={() => ''}
             />
-          </div>
-        </Card>
-
-        <Card bordered={false} style={card} bodyStyle={{ padding: 12 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Décaissements
-          </Text>
-          <div style={{ marginTop: 10 }}>
-            <FlowVerticalGauge
-              label="Décaissements"
-              value={derived.dec}
-              color="#ff4d4f"
-              formatMontantAbs={formatMontantAbs}
-              isMobile
-              invertFill={false}
-              invertShape
-            />
-          </div>
-        </Card>
+          </PieChart>
+        </ResponsiveContainer>
       </div>
-
-      {/* Alertes */}
-      <Card bordered={false} style={{ ...card, marginTop: 12 }} bodyStyle={{ padding: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Alertes
-          </Text>
-          <Tag style={{ borderRadius: 999, margin: 0 }}>{filteredAlerts.length}</Tag>
-        </div>
-
-        {filteredAlerts.length === 0 ? (
-          <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-            <WarningOutlined style={{ color: '#52c41a' }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Aucune alerte
-            </Text>
-          </div>
-        ) : (
-          <List
-            size="small"
-            style={{ marginTop: 8 }}
-            dataSource={filteredAlerts.slice(0, 6)}
-            renderItem={(a) => {
-              const c = a.level === 'red' ? '#ff4d4f' : a.level === 'orange' ? '#faad14' : '#52c41a';
-              return (
-                <List.Item style={{ paddingLeft: 0, paddingRight: 0 }}>
-                  <div style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 999, background: c, display: 'inline-block' }} />
-                      <Text strong style={{ fontSize: 12 }}>
-                        {a.title}
-                      </Text>
-                    </div>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      {a.message}
-                    </Text>
-                  </div>
-                </List.Item>
-              );
-            }}
-          />
-        )}
-      </Card>
-
-      {/* Retards (cards clean) */}
-      <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>  
-        <Card bordered={false} style={card} bodyStyle={{ padding: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Clients en retard
-              </Text>
-              <div style={{ fontWeight: 900, fontSize: 16, marginTop: 6 }}>
-                {formatMontantAbs(derived.clients?.retard || 0)}
-              </div>
-              <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Tag style={{ borderRadius: 999, margin: 0 }}>{Number(derived.clients?.count || 0)} partenaires</Tag>
-                <Tag style={{ borderRadius: 999, margin: 0 }}>{Number(derived.clients?.nbRetard || 0)} écritures</Tag>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
-              <TrendTag trend={derived.clients?.retardTrend} invertColors />
-              <Button size="small" onClick={() => setOpenClients(true)}>
-                Détails
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        <Card bordered={false} style={card} bodyStyle={{ padding: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Fournisseurs en retard
-              </Text>
-              <div style={{ fontWeight: 900, fontSize: 16, marginTop: 6 }}>
-                {formatMontantAbs(derived.fournisseurs?.retard || 0)}
-              </div>
-              <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Tag style={{ borderRadius: 999, margin: 0 }}>{Number(derived.fournisseurs?.count || 0)} partenaires</Tag>
-                <Tag style={{ borderRadius: 999, margin: 0 }}>{Number(derived.fournisseurs?.nbRetard || 0)} écritures</Tag>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
-              <TrendTag trend={derived.fournisseurs?.retardTrend} invertColors />
-              <Button size="small" onClick={() => setOpenFournisseurs(true)}>
-                Détails
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Drawers plein écran */}
-      <Drawer title="Détails — Clients en retard" open={openClients} onClose={() => setOpenClients(false)} width="100%">
-        {(derived.clients?.top || []).length === 0 ? (
-          <Text type="secondary">Aucun détail disponible.</Text>
-        ) : (
-          <List
-            dataSource={derived.clients.top}
-            renderItem={(it, idx) => (
-              <List.Item key={`${it.partner || it.partenaire || 'client'}-${idx}`}>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <Text strong>{it.partner || it.partenaire || 'Client'}</Text>
-                    <Text strong>{formatMontantAbs(it.montant || 0)}</Text>
-                  </div>
-                </div>
-              </List.Item>
-            )}
-          />
-        )}
-      </Drawer>
-
-      <Drawer title="Détails — Fournisseurs en retard" open={openFournisseurs} onClose={() => setOpenFournisseurs(false)} width="100%">
-        {(derived.fournisseurs?.top || []).length === 0 ? (
-          <Text type="secondary">Aucun détail disponible.</Text>
-        ) : (
-          <List
-            dataSource={derived.fournisseurs.top}
-            renderItem={(it, idx) => (
-              <List.Item key={`${it.partner || it.partenaire || 'fourn'}-${idx}`}>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <Text strong>{it.partner || it.partenaire || 'Fournisseur'}</Text>
-                    <Text strong>{formatMontantAbs(it.montant || 0)}</Text>
-                  </div>
-                </div>
-              </List.Item>
-            )}
-          />
-        )}
-      </Drawer>
     </div>
   );
 }
 
-export default function Dashboard({ mode = 'light' }) {
 
+export default function Dashboard({ mode = 'light' }) {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
-
 
   const isDark = mode === 'dark';
 
@@ -1268,14 +992,11 @@ export default function Dashboard({ mode = 'light' }) {
     const textSecondary = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
     const textTertiary = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)';
     const cardBg = isDark ? 'rgba(255,255,255,0.04)' : '#fff';
-    const split = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)';
-    const rowSplit = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
     const shadow = isDark
       ? '0 18px 45px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.40)'
       : '0 18px 45px rgba(15,23,42,0.12), 0 0 1px rgba(15,23,42,0.08)';
-    return { textPrimary, textSecondary, textTertiary, cardBg, split, rowSplit, shadow };
+    return { textPrimary, textSecondary, textTertiary, cardBg, shadow };
   }, [isDark]);
-
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1442,6 +1163,7 @@ export default function Dashboard({ mode = 'light' }) {
       name: c.label?.length > 12 ? `${c.label.slice(0, 10)}…` : c.label,
       fullName: c.label,
       value: Number(c.montant || 0),
+      // ✅ on conserve ta logique couleur existante (au cas où tu t'en sers ailleurs)
       color: COLORS[i % COLORS.length],
     }));
 
@@ -1532,14 +1254,8 @@ export default function Dashboard({ mode = 'light' }) {
     );
   }
 
-  const cashNegatif = derived.cashDisponible < 0;
-
-
-
   const periodeLabel = isGlobal ? 'Global (toutes les données)' : periode.format('MMMM YYYY');
   const lastUpdatedLabel = lastUpdated ? dayjs(lastUpdated).format('HH:mm') : null;
-
-
 
   const cardSoft = {
     borderRadius: 22,
@@ -1548,7 +1264,6 @@ export default function Dashboard({ mode = 'light' }) {
     border: isDark ? '1px solid rgba(255,255,255,0.10)' : 'none',
   };
 
-  // ton cockpit/cluster est déjà très dark, on le garde, mais on “sync” juste le texte
   const cardDark = {
     ...cardSoft,
     background: 'linear-gradient(180deg, #0b0f14 0%, #050607 70%, #000 100%)',
@@ -1688,16 +1403,6 @@ export default function Dashboard({ mode = 'light' }) {
 
   const hudText = { color: 'rgba(255,255,255,0.70)', fontSize: 12 };
 
-
-  const cockpitGridMobile = {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    gap: 8,
-    alignItems: 'end',
-  };
-
-
-
   const clusterGrid = {
     display: 'grid',
     gap: isMobile ? 16 : 12,
@@ -1706,14 +1411,17 @@ export default function Dashboard({ mode = 'light' }) {
   };
 
   const gaugeFrame = {
-    padding: 10,
-    borderRadius: 18,
-    background:
-      'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), rgba(255,255,255,0.02) 55%, rgba(0,0,0,0) 100%)',
-    border: '1px solid rgba(255,255,255,0.08)',
-  };
+  padding: 10,
+  borderRadius: 18,
+  background:
+    'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), rgba(255,255,255,0.02) 55%, rgba(0,0,0,0) 100%)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  // ✅ mobile: centre le bloc lui-même
+  ...(isMobile ? { marginLeft: 'auto', marginRight: 'auto', width: 'fit-content' } : {}),
+};
 
-  const dialWrap = { display: 'flex', justifyContent: 'center', alignItems: 'center' };
+const dialWrap = { display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' };
+
 
   const dialCaption = {
     marginTop: 8,
@@ -1751,8 +1459,6 @@ export default function Dashboard({ mode = 'light' }) {
     );
   };
 
-
-
   return (
     <div style={{ padding: isMobile ? 8 : 24 }}>
       {/* Header + filtres */}
@@ -1768,12 +1474,10 @@ export default function Dashboard({ mode = 'light' }) {
       >
         <div>
           <Title level={2} style={{ margin: 0, color: ui.textPrimary }}>
-
             Tableau de bord
           </Title>
           <Space size={8} wrap>
-           <Text style={{ color: ui.textSecondary }}>Cockpit de pilotage de votre entreprise</Text>
-
+            <Text style={{ color: ui.textSecondary }}>Cockpit de pilotage de votre entreprise</Text>
             <Tag style={{ borderRadius: 999, margin: 0 }}>{periodeLabel}</Tag>
             {lastUpdatedLabel && (
               <Tag color="blue" style={{ borderRadius: 999, margin: 0 }}>
@@ -1869,9 +1573,7 @@ export default function Dashboard({ mode = 'light' }) {
                 </div>
               </div>
 
-              {/* (tu peux remettre Segmented si tu veux, j'ai laissé ton filtre comme tu l’avais) */}
               <div style={{ width: isMobile ? '100%' : 'auto' }}>
-                {/* simple toggle, garde ton composant si besoin */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {alertOptions.map((o) => (
                     <Button
@@ -1963,6 +1665,7 @@ export default function Dashboard({ mode = 'light' }) {
               <div style={clusterBody}>
                 <div style={clusterHud}>
                   <div style={hudLeft}>
+                    {/* ✅ couleur circle voyant inchangée */}
                     <div style={hudDot(derived.voyantColor)} />
                     <span style={hudText}>
                       {periodeLabel} {lastUpdatedLabel ? `• MAJ ${lastUpdatedLabel}` : ''}
@@ -1972,8 +1675,6 @@ export default function Dashboard({ mode = 'light' }) {
                       {derived.diffPositif ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                       {Math.abs(derived.pct).toFixed(1)}%
                     </Pill>
-
-                    {/* <Pill tone={cashNegatif ? 'danger' : 'success'}>CASH {cashNegatif ? 'NÉGATIF' : 'POSITIF'}</Pill> */}
                   </div>
                 </div>
 
@@ -1985,17 +1686,25 @@ export default function Dashboard({ mode = 'light' }) {
                   <div>
                     <div style={dialWrap}>
                       <div style={gaugeFrame}>
-                        <DarkDialGauge
-                          value={derived.caMois}
-                          max="auto"
-                          size={isMobile ? 270 : 440}
-                          bottomValue={formatMontantAbs(derived.caMois)}
-                          subtitle={isGlobal ? 'CA global' : 'CA du mois'}
-                          blueGlow
-                          accentColor="#2f6fed"
-                          needleColor="#2f6fed"
-                          showProgress
-                        />
+                        <Row justify="center" align="middle">
+                          <Col xs={24} sm={24} md={24} style={{ display: 'flex', justifyContent: 'center' }}>
+                            <div style={{ width: '100%', maxWidth: isMobile ? 230 : 'none' }}>
+                              <DarkDialGauge
+                                value={derived.caMois}
+                                max="auto"
+                                size={isMobile ? 230 : 440}   // desktop inchangé
+                                bottomValue={formatMontantAbs(derived.caMois)}
+                                subtitle={isGlobal ? 'CA global' : 'CA du mois'}
+                                blueGlow
+                                accentColor="#2f6fed"
+                                needleColor="#2f6fed"
+                                showProgress
+                              />
+                            </div>
+                          </Col>
+                        </Row>
+
+
                       </div>
                     </div>
                     <div style={dialCaption}>
@@ -2004,7 +1713,7 @@ export default function Dashboard({ mode = 'light' }) {
                     </div>
                   </div>
 
-                  {/* ✅ Enc/Dec => jauges verticales */}
+                  {/* Enc/Dec */}
                   <div style={rightStack}>
                     <div style={gaugeFrame}>
                       <FlowVerticalGauge
@@ -2026,26 +1735,24 @@ export default function Dashboard({ mode = 'light' }) {
                         formatMontantAbs={formatMontantAbs}
                         isMobile={isMobile}
                         invertFill={false}
-                        invertShape={true} // ✅ FIX demandé : petit en haut / large en bas
+                        invertShape={true}
                       />
                     </div>
                   </div>
 
-                  {/* ✅ CASH => une seule jauge voiture selon signe */}
+                  {/* Cash */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <div style={gaugeFrame}>
-                        <CashCarGauge cashDisponible={derived.cashDisponible} formatMontantSigned={formatMontantSigned} isMobile={isMobile} />
+                        <CashCarGauge
+                          cashDisponible={derived.cashDisponible}
+                          formatMontantSigned={formatMontantSigned}
+                          isMobile={isMobile}
+                        />
                       </div>
                     </div>
 
                     <div style={{ marginTop: 10, gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                      {/* <MiniScreen label="ENC" value={formatMontantAbs(derived.enc)} tone="neutral" />
-                      <MiniScreen
-                        label="SOLDE"
-                        value={formatMontantSigned(derived.soldeMois)}
-                        tone={derived.soldeMois >= 0 ? 'success' : 'danger'}
-                      /> */}
                       <MiniScreen
                         label="VOYANT"
                         value={derived.voyantText}
@@ -2067,8 +1774,10 @@ export default function Dashboard({ mode = 'light' }) {
           <Card bordered={false} style={cardSoft}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <Text type="secondary" style={{ fontSize: 12 ,color: ui.textSecondary}}>Charges principales</Text>
-                <div style={{ fontWeight: 900, fontSize: 18, marginTop: 6,color: ui.textSecondary }}>
+                <Text type="secondary" style={{ fontSize: 12, color: ui.textSecondary }}>
+                  Charges principales
+                </Text>
+                <div style={{ fontWeight: 900, fontSize: 18, marginTop: 6, color: ui.textSecondary }}>
                   {formatMontantAbs(derived.totalChargesMois)}
                 </div>
               </div>
@@ -2077,49 +1786,18 @@ export default function Dashboard({ mode = 'light' }) {
               </AntTooltip>
             </div>
 
-            <div style={{ height: 170, marginTop: 10 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <defs>
-                    <linearGradient id="blueGradient" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#6dd5fa" />
-                      <stop offset="100%" stopColor="#1e3c72" />
-                    </linearGradient>
-                  </defs>
-
-                  <Pie
-                    data={derived.chargesPieData}
-                    dataKey="value"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={75}
-                    paddingAngle={2}
-                  >
-                    {derived.chargesPieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill="url(#blueGradient)" />
-                    ))}
-                  </Pie>
-
-                  <Tooltip
-                    formatter={(value, _name, { payload }) => {
-                      const label = payload?.fullName || payload?.name || '';
-                      
-                      return [formatMontantAbs(value), label];
-                    }}
-                    labelFormatter={() => ''}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {/* ✅ Pie responsive mobile (desktop inchangé + couleurs circle inchangées) */}
+            <ChargesPieResponsive derived={derived} formatMontantAbs={formatMontantAbs} />
 
             <div style={{ marginTop: 6 }}>
               {derived.chargesPieData.slice(0, 4).map((c, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 8,color: ui.textSecondary }}>
-                  <Text style={{ fontSize: 12 ,color: ui.textSecondary}}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
+                  <Text style={{ fontSize: 12, color: ui.textSecondary }}>
                     {c.fullName?.length > 18 ? `${c.fullName.slice(0, 16)}…` : c.fullName}
                   </Text>
-                  <Text strong style={{ fontSize: 12,color: ui.textSecondary }}>{formatMontantAbs(c.value)}</Text>
+                  <Text strong style={{ fontSize: 12, color: ui.textSecondary }}>
+                    {formatMontantAbs(c.value)}
+                  </Text>
                 </div>
               ))}
             </div>
@@ -2129,16 +1807,16 @@ export default function Dashboard({ mode = 'light' }) {
         {/* Retards */}
         <Col xs={24} lg={8}>
           <Card bordered={false} style={cardSoft}>
-            <Text type="secondary" style={{ fontSize: 12 , color: ui.textSecondary }}>
+            <Text type="secondary" style={{ fontSize: 12, color: ui.textSecondary }}>
               Retards
             </Text>
 
-            <div style={{ marginTop: 12, display: 'grid', gap: 14 ,color: ui.textSecondary}}>
+            <div style={{ marginTop: 12, display: 'grid', gap: 14 }}>
               {/* Clients */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 , color: ui.textSecondary }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Text strong style={{color: ui.textSecondary }}>Clients en retard</Text>
+                    <Text strong style={{ color: ui.textSecondary }}>Clients en retard</Text>
                     <Tag color="cyan" style={{ borderRadius: 999, margin: 0 }}>
                       VTE/PRE
                     </Tag>
@@ -2146,10 +1824,12 @@ export default function Dashboard({ mode = 'light' }) {
                     <Tag style={{ borderRadius: 999, margin: 0 }}>{Number(derived.clients?.nbRetard || 0)} écritures</Tag>
                   </div>
 
-                  <div style={{ fontWeight: 900, fontSize: 18, marginTop: 4 }}>{formatMontantAbs(derived.clients?.retard || 0)}</div>
+                  <div style={{ fontWeight: 900, fontSize: 18, marginTop: 4 }}>
+                    {formatMontantAbs(derived.clients?.retard || 0)}
+                  </div>
 
                   {derived.clients?.oldestDate && (
-                    <Text type="secondary" style={{ fontSize: 11 ,color: ui.textSecondary}}>
+                    <Text type="secondary" style={{ fontSize: 11, color: ui.textSecondary }}>
                       Plus ancien: {dayjs(derived.clients.oldestDate).format('DD/MM/YYYY')}
                     </Text>
                   )}
@@ -2167,7 +1847,7 @@ export default function Dashboard({ mode = 'light' }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                       <Text strong style={{color: ui.textSecondary }}>Fournisseurs en retard</Text>
+                    <Text strong style={{ color: ui.textSecondary }}>Fournisseurs en retard</Text>
                     <Tag color="gold" style={{ borderRadius: 999, margin: 0 }}>
                       ACH
                     </Tag>
@@ -2180,7 +1860,7 @@ export default function Dashboard({ mode = 'light' }) {
                   </div>
 
                   {derived.fournisseurs?.oldestDate && (
-                    <Text type="secondary" style={{ fontSize: 11 }}>
+                    <Text type="secondary" style={{ fontSize: 11, color: ui.textSecondary }}>
                       Plus ancien: {dayjs(derived.fournisseurs.oldestDate).format('DD/MM/YYYY')}
                     </Text>
                   )}
@@ -2196,7 +1876,7 @@ export default function Dashboard({ mode = 'light' }) {
             </div>
 
             <Divider style={{ margin: '14px 0' }} />
-            <Text type="secondary" style={{ fontSize: 11 ,color: ui.textSecondary}}>
+            <Text type="secondary" style={{ fontSize: 11, color: ui.textSecondary }}>
               Retards calculés sur les échéances (net par partenaire).
             </Text>
           </Card>
@@ -2205,7 +1885,7 @@ export default function Dashboard({ mode = 'light' }) {
         {/* Résultat brut */}
         <Col xs={24} lg={8}>
           <Card bordered={false} style={cardSoft}>
-            <Text type="secondary" style={{ fontSize: 12 ,color: ui.textSecondary}}>
+            <Text type="secondary" style={{ fontSize: 12, color: ui.textSecondary }}>
               Résultat brut estimé
             </Text>
 
@@ -2235,7 +1915,6 @@ export default function Dashboard({ mode = 'light' }) {
                 >
                   {formatMontantSigned(derived.resultatBrut)}
                 </div>
-              
               </div>
             </div>
           </Card>
@@ -2308,12 +1987,6 @@ export default function Dashboard({ mode = 'light' }) {
           />
         )}
       </Drawer>
-
-      <div style={{ marginTop: 14 }}>
-        <Text type="secondary" style={{ fontSize: 11 }}>
-
-        </Text>
-      </div>
     </div>
   );
 }
