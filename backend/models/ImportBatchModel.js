@@ -11,6 +11,7 @@ const ImportBatch = sequelize.define(
       allowNull: false,
       defaultValue: Sequelize.UUIDV4, // génère automatiquement
     },
+
     type: {
       type: Sequelize.STRING(50),
       allowNull: false,
@@ -29,7 +30,9 @@ const ImportBatch = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    userId: { type: Sequelize.UUID, allowNull: false }
   },
+
   {
     tableName: 'ImportBatches',
     timestamps: true,

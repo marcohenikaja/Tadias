@@ -232,6 +232,7 @@ async function importGrandLivre(req, res) {
           fileName: req.file.originalname || null,
           sheetName: usedSheetName,
           importedCount: 0,
+          userId: req.user.sub, // ✅ AJOUT
         },
         { transaction: t }
       );
@@ -263,7 +264,7 @@ async function importGrandLivre(req, res) {
   } finally {
     try {
       if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
