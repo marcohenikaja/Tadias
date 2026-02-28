@@ -6,6 +6,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
+const auth = require("../middlewares/auth");
+
 // controllers admin users (public)
 const {
   createUser,
@@ -22,7 +24,7 @@ const { getTresorerie } = require("../controllers/TresorerieController");
 const { getActivite } = require("../controllers/ActiviteController");
 const { getCharges } = require("../controllers/ChargesController");
 
-// ✅ NEW: controllers imports batch
+// controllers imports batch
 const {
   listImports,
   deleteImportById,
@@ -30,7 +32,11 @@ const {
 } = require("../controllers/ImportBatchController");
 
 // factures
-const { uploadFactures, listFactures, deleteFacture } = require("../controllers/FacturesController");
+const {
+  uploadFactures,
+  listFactures,
+  deleteFacture,
+} = require("../controllers/FacturesController");
 
 // auth controller
 const { login } = require("../controllers/AuthController");
@@ -91,12 +97,12 @@ const uploadFacturesMulter = multer({
 });
 
 // =========================
-// AUTH
+// AUTH (public)
 // =========================
 router.post("/auth/login", login);
 
 // =========================
-// ADMIN USERS (public)
+// ADMIN USERS (public)  ✅ (à protéger si tu veux)
 // =========================
 router.post("/api/admin/users", createUser);
 router.get("/api/admin/users", listUsers);
@@ -105,20 +111,21 @@ router.delete("/api/admin/users/:id", deleteUser);
 router.patch("/api/admin/users/:id/password", resetPassword);
 
 // =========================
+// ROUTES PROTÉGÉES (JWT)
+// =========================
+
 // IMPORT GRAND LIVRE
-// =========================
-router.post("/import/grand-livre", uploadExcel.single("file"), importGrandLivre);
+router.post("/import/grand-livre", auth, uploadExcel.single("file"), importGrandLivre);
 
-// ✅ NEW: HISTORIQUE IMPORTS + SUPPRESSION
-router.get("/api/imports", listImports);              // liste imports
-router.delete("/api/imports-last", deleteLastImport); // supprime dernier import
-router.delete("/api/imports/:id", deleteImportById);  // supprime import par id
+// HISTORIQUE IMPORTS + SUPPRESSION
+router.get("/api/imports", auth, listImports);
+router.delete("/api/imports-last", auth, deleteLastImport);
+router.delete("/api/imports/:id", auth, deleteImportById);
 
-// =========================
 // FACTURES
-// =========================
 router.post(
   "/api/factures/upload",
+  auth,
   (req, res, next) => {
     uploadFacturesMulter.array("files", 10)(req, res, (err) => {
       if (err) return res.status(400).json({ ok: false, message: err.message });
@@ -128,15 +135,13 @@ router.post(
   uploadFactures
 );
 
-router.get("/api/factures", listFactures);
-router.delete("/api/factures/:filename", deleteFacture);
+router.get("/api/factures", auth, listFactures);
+router.delete("/api/factures/:filename", auth, deleteFacture);
 
-// =========================
 // DASHBOARD / KPI
-// =========================
-router.get("/api/dashboard", getDashboard);
-router.get("/api/tresorerie", getTresorerie);
-router.get("/api/activite", getActivite);
-router.get("/api/charges", getCharges);
+router.get("/api/dashboard", auth, getDashboard);
+router.get("/api/tresorerie", auth, getTresorerie);
+router.get("/api/activite", auth, getActivite);
+router.get("/api/charges", auth, getCharges);
 
 module.exports = router;

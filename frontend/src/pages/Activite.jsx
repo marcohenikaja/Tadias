@@ -44,7 +44,7 @@ const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const cleanBase = (s) => (s || '').replace(/\/+$/, '');
-const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE);
 
 export default function Activite({ mode = 'light' }) {
   const screens = useBreakpoint();
@@ -77,7 +77,16 @@ export default function Activite({ mode = 'light' }) {
 
   const abortRef = useRef(null);
 
-  const token = useMemo(() => localStorage.getItem('token'), []);
+  const [token, setToken] = useState(() => localStorage.getItem('token') || '');
+
+  useEffect(() => {
+    // au montage (et si tu changes le token dans un autre onglet)
+    const syncToken = () => setToken(localStorage.getItem('token') || '');
+    syncToken();
+    window.addEventListener('storage', syncToken);
+    return () => window.removeEventListener('storage', syncToken);
+  }, []);
+
   const headers = useMemo(() => {
     const h = { Accept: 'application/json' };
     if (token) h.Authorization = `Bearer ${token}`;

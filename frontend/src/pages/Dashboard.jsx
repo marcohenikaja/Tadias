@@ -1141,11 +1141,16 @@ export default function Dashboard({ mode = 'light' }) {
 
         const status = e?.status;
         const shouldRetry =
-          retryCount < 3 && e?.name !== 'AbortError' && (status == null || status >= 500 || status === 429);
+          retryCount < 3 &&
+          e?.name !== 'AbortError' &&
+          (status == null || status >= 500 || status === 429);
 
         if (shouldRetry) {
           willRetry = true;
-          retryTimerRef.current = setTimeout(() => fetchDashboard(p, retryCount + 1), 2000 * (retryCount + 1));
+          retryTimerRef.current = setTimeout(
+            () => fetchDashboard(p, retryCount + 1),
+            2000 * (retryCount + 1)
+          );
         } else {
           setError(e?.name === 'AbortError' ? 'Timeout du serveur' : e?.message || 'Erreur inconnue');
         }
@@ -1154,7 +1159,7 @@ export default function Dashboard({ mode = 'light' }) {
         if (mountedRef.current && !willRetry) setLoading(false);
       }
     },
-    [periode, cacheKeyFor, isGlobal]
+    [periode, isGlobal, cacheKeyFor, API_BASE] // ✅ FIX deps
   );
 
   useEffect(() => {

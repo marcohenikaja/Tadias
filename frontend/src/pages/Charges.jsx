@@ -92,9 +92,19 @@ export default function Charges({ mode = 'light' }) {
   // ✅ filtre partenaire
   const [partenaire, setPartenaire] = useState('');
 
-  const token = useMemo(() => localStorage.getItem('token'), []);
+  const [token, setToken] = useState(() => localStorage.getItem("token") || "");
+
+  useEffect(() => {
+    const syncToken = () => setToken(localStorage.getItem("token") || "");
+    syncToken(); // au montage
+
+    // si token change dans un autre onglet
+    window.addEventListener("storage", syncToken);
+    return () => window.removeEventListener("storage", syncToken);
+  }, []);
+
   const headers = useMemo(() => {
-    const h = { Accept: 'application/json' };
+    const h = { Accept: "application/json" };
     if (token) h.Authorization = `Bearer ${token}`;
     return h;
   }, [token]);
@@ -158,7 +168,7 @@ export default function Charges({ mode = 'light' }) {
               return;
             }
           }
-        } catch (_) {}
+        } catch (_) { }
 
         if (retryCount < 2 && e?.name !== 'AbortError') {
           setTimeout(() => fetchCharges(params, retryCount + 1), 1500 * (retryCount + 1));
