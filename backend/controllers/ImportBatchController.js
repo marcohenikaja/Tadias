@@ -1,19 +1,20 @@
 // controllers/ImportBatchController.js
 const { LedgerEntry } = require('../models/LedgerEntryModel');
 const { ImportBatch } = require('../models/ImportBatchModel'); // adapte si ton chemin diffère
+const { User } = require("../models/User");
 
 async function listImports(req, res) {
   try {
     const items = await ImportBatch.findAll({
-      order: [['createdAt', 'DESC']],
-      limit: 100,
+      order: [["createdAt", "DESC"]],
+      include: [{ model: User, as: "user", attributes: ["id", "name", "email"] }],
     });
-    return res.json({ items });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Erreur lors de la liste des imports' });
+
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: "Erreur listImports", error: e?.message });
   }
-}
+};
 
 async function deleteImportById(req, res) {
   try {

@@ -37,7 +37,7 @@ const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
 const cleanBase = (s) => (s || '').replace(/\/+$/, '');
-const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE);
 
 export default function ImportsManager({ mode = "light" }) {
   const isDark = mode === "dark";
@@ -267,7 +267,7 @@ export default function ImportsManager({ mode = "light" }) {
           message.error(res?.message || "Erreur lors de l'import du fichier.");
         }
       },
-      onDrop() {},
+      onDrop() { },
     }),
     [headers, fetchImports]
   );
@@ -281,6 +281,18 @@ export default function ImportsManager({ mode = "light" }) {
       sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
       defaultSortOrder: 'descend',
     },
+    {
+      title: 'Utilisateur',
+      key: 'user',
+      width: 220,
+      render: (_, r) => (
+        <div style={{ lineHeight: 1.1 }}>
+          <Text strong style={{ color: ui.textPrimary }}>{r?.user?.name || '—'}</Text>
+          <div style={{ fontSize: 12, color: ui.textSecondary }}>{r?.user?.email || ''}</div>
+        </div>
+      ),
+    },
+
     {
       title: 'Type',
       dataIndex: 'type',
@@ -341,7 +353,9 @@ export default function ImportsManager({ mode = "light" }) {
           <Text style={{ fontSize: 12, color: ui.textSecondary }}>
             {dayjs(record.createdAt).format('DD/MM/YYYY HH:mm')}
           </Text>
-
+          <Text style={{ fontSize: 12, color: ui.textSecondary }}>
+            Par : {record?.user?.name || record?.user?.email || '—'}
+          </Text>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={{ color: ui.textPrimary }}>
               Lignes : <strong>{record.importedCount}</strong>

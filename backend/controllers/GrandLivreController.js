@@ -1,63 +1,72 @@
 // controllers/ImportGrandLivreController.js
-const xlsx = require('xlsx');
-const fs = require('fs');
-const crypto = require('crypto');
-const { LedgerEntry } = require('../models/LedgerEntryModel');
-const { ImportBatch } = require('../models/ImportBatchModel'); // adapte selon ton projet
+const xlsx = require("xlsx");
+const fs = require("fs");
+const crypto = require("crypto");
 
+const { LedgerEntry } = require("../models/LedgerEntryModel");
+const { ImportBatch } = require("../models/ImportBatchModel");
+
+// =====================
+// Helpers dates / nombres
+// =====================
 function excelSerialToDate(serial) {
+  // Excel epoch (Windows) : 1899-12-30
   const excelEpoch = new Date(Date.UTC(1899, 11, 30));
   const ms = excelEpoch.getTime() + Number(serial) * 24 * 60 * 60 * 1000;
-  return new Date(ms);
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function parseExcelDate(value) {
-  if (value === null || value === undefined || value === '') return null;
+  if (value === null || value === undefined || value === "") return null;
+
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
 
-  if (typeof value === 'number') {
-    const d = excelSerialToDate(value);
-    return Number.isNaN(d.getTime()) ? null : d;
+  if (typeof value === "number") {
+    return excelSerialToDate(value);
   }
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const s = value.trim();
     if (!s) return null;
 
-    const [datePart] = s.split(' ');
+    // format dd/mm/yyyy ou dd-mm-yyyy
+    const [datePart] = s.split(" ");
     const m = datePart.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+    if (m) {
+      const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
 
     const d = new Date(s);
-    if (!Number.isNaN(d.getTime())) return d;
+    return Number.isNaN(d.getTime()) ? null : d;
   }
 
   return null;
 }
 
 function parseNumber(value) {
-  if (value === null || value === undefined || value === '') return 0;
-  if (typeof value === 'number') return value;
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const cleaned = value
-      .replace(/\u00A0/g, ' ')
-      .replace(/\s/g, '')
-      .replace(',', '.');
+      .replace(/\u00A0/g, " ")
+      .replace(/\s/g, "")
+      .replace(",", ".");
     const n = Number(cleaned);
     return Number.isNaN(n) ? 0 : n;
   }
-
   return 0;
 }
 
 function normalizeText(v) {
-  return String(v ?? '')
-    .replace(/\u00A0/g, ' ')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  return String(v ?? "")
+    .replace(/\u00A0/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/\s+/g, ' ')
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -80,35 +89,61 @@ function getCellAny(row, list) {
 function findHeaderRowIndex(worksheet) {
   const preview = xlsx.utils.sheet_to_json(worksheet, { header: 1, defval: null });
   const limit = Math.min(preview.length, 120);
+
   const has = (arr, word) => (arr || []).some((c) => normalizeText(c) === normalizeText(word));
 
   for (let i = 0; i < limit; i++) {
     const r = preview[i] || [];
-    if (has(r, 'Code') && has(r, 'Nom du compte')) return i;
+    if (has(r, "Code") && has(r, "Nom du compte")) return i;
   }
   return -1;
 }
 
+function makeUUID() {
+  // Node >= 14.17 : crypto.randomUUID()
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // fallback
+  return crypto.randomBytes(16).toString("hex");
+}
+
+// =====================
+// Controller
+// =====================
 async function importGrandLivre(req, res) {
-  if (!req.file) return res.status(400).json({ message: 'Aucun fichier reçu' });
+  if (!req.user?.sub) {
+    return res.status(401).json({ ok: false, message: "Non authentifié" });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ ok: false, message: "Aucun fichier reçu" });
+  }
+
   const filePath = req.file.path;
 
   try {
     const workbook = xlsx.readFile(filePath, { cellDates: true });
     const sheetNames = workbook.SheetNames || [];
-    if (!sheetNames.length) return res.status(400).json({ message: 'Aucun onglet trouvé' });
+    if (!sheetNames.length) {
+      return res.status(400).json({ ok: false, message: "Aucun onglet trouvé" });
+    }
 
     const usedSheetName =
-      sheetNames.find((s) => normalizeText(s).includes('grand livre')) || sheetNames[0];
+      sheetNames.find((s) => normalizeText(s).includes("grand livre")) || sheetNames[0];
 
     const worksheet = workbook.Sheets[usedSheetName];
+    if (!worksheet || !worksheet["!ref"]) {
+      return res.status(400).json({ ok: false, message: "Onglet vide ou illisible" });
+    }
+
     const options = { defval: null };
 
+    // si on retrouve la ligne d'entêtes, on commence à partir de là
     const headerIdx = findHeaderRowIndex(worksheet);
     if (headerIdx >= 0) {
-      const range = xlsx.utils.decode_range(worksheet['!ref']);
+      const range = xlsx.utils.decode_range(worksheet["!ref"]);
       range.s.r = headerIdx;
-      options.range = range;
+      range.s.c = 0;
+      options.range = range; // sheet_to_json accepte un range object
     }
 
     const rows = xlsx.utils.sheet_to_json(worksheet, options);
@@ -116,21 +151,16 @@ async function importGrandLivre(req, res) {
     let currentAccountCode = null;
     let currentAccountLabel = null;
 
-    // ✅ batchId unique pour cet import
-    const batchId = crypto.randomUUID();
-
+    const batchId = makeUUID();
     const entriesToInsert = [];
 
-    // ✅ pour détecter l’année à partir des écritures datées
     let detectedYear = null;
-
-    // ✅ on capture la ligne "SOLDE OUVERTURE ..."
     let openingRow = null;
 
     for (const row of rows) {
-      const rawCode = getCell(row, 'Code');
-      const rawNom = getCell(row, 'Nom du compte');
-      const rawDate = getCellAny(row, ['Date', 'Date écriture', 'Date ecriture']);
+      const rawCode = getCell(row, "Code");
+      const rawNom = getCell(row, "Nom du compte");
+      const rawDate = getCellAny(row, ["Date", "Date écriture", "Date ecriture"]);
 
       const code = rawCode != null ? String(rawCode).trim() : null;
       const nomCol = rawNom != null ? String(rawNom).trim() : null;
@@ -138,54 +168,48 @@ async function importGrandLivre(req, res) {
       const parsedDate = parseExcelDate(rawDate);
       if (parsedDate && !detectedYear) detectedYear = parsedDate.getFullYear();
 
-      // ✅ lire débit/crédit
-      const rawDebit = getCellAny(row, ['Débit', 'Debit']);
-      const rawCredit = getCellAny(row, ['Crédit', 'Credit']);
+      const rawDebit = getCellAny(row, ["Débit", "Debit"]);
+      const rawCredit = getCellAny(row, ["Crédit", "Credit"]);
       const debit = parseNumber(rawDebit);
       const credit = parseNumber(rawCredit);
 
-      // ✅ 1) DETECT "SOLDE OUVERTURE ..." même sans date/partner
-      // (souvent placé à la fin du fichier)
-      if (nomCol && normalizeText(nomCol).includes('solde ouverture')) {
-        // on garde la valeur non nulle (et on la stocke en net credit-debit)
+      // ✅ 1) détecter "SOLDE OUVERTURE"
+      if (nomCol && normalizeText(nomCol).includes("solde ouverture")) {
         if ((credit && credit !== 0) || (debit && debit !== 0)) {
-          openingRow = {
-            nomDuCompte: nomCol,
-            debit,
-            credit,
-          };
+          openingRow = { nomDuCompte: nomCol, debit, credit };
         }
-        continue; // on ne traite pas comme mouvement normal
+        continue;
       }
 
-      // Ligne titre compte : code présent + pas une vraie date
+      // Ligne "titre compte" : code présent + pas de date valide
       if (code && !parsedDate) {
         currentAccountCode = code;
         currentAccountLabel = nomCol || null;
         continue;
       }
 
-      // skip total / solde initial (mais PAS solde ouverture)
-      if (typeof nomCol === 'string') {
+      // ignorer total / solde initial
+      if (typeof nomCol === "string") {
         const low = normalizeText(nomCol);
-        if (low.startsWith('total ')) continue;
-        if (low === 'solde initial') continue;
+        if (low.startsWith("total ")) continue;
+        if (low === "solde initial") continue;
       }
 
       // Mouvement : date valide
       if (parsedDate) {
         if (!currentAccountCode) continue;
 
-        const rawPartner = getCellAny(row, ['Partenaire', 'Partner', 'Tiers']);
-        const partner = rawPartner && String(rawPartner).trim() ? String(rawPartner).trim() : null;
+        const rawPartner = getCellAny(row, ["Partenaire", "Partner", "Tiers"]);
+        const partner =
+          rawPartner && String(rawPartner).trim() ? String(rawPartner).trim() : null;
 
-        // ✅ règle : on ignore si partenaire vide (sauf ouverture)
+        // ✅ règle : on ignore si partenaire vide (sauf solde ouverture qu'on ajoute après)
         if (!partner) continue;
 
-        const rawEcheance = getCellAny(row, ['Échéance', 'Echéance', 'Echeance']);
+        const rawEcheance = getCellAny(row, ["Échéance", "Echéance", "Echeance"]);
         const parsedEcheance = parseExcelDate(rawEcheance);
 
-        const rawCommunication = getCellAny(row, ['Communication', 'Libellé', 'Libelle']);
+        const rawCommunication = getCellAny(row, ["Communication", "Libellé", "Libelle"]);
 
         const nomDuCompteToSave = nomCol || currentAccountLabel || null;
 
@@ -202,14 +226,14 @@ async function importGrandLivre(req, res) {
       }
     }
 
-    // ✅ Si on a trouvé un solde ouverture : on l’insère comme une écriture datée au 01/01 de l’année
+    // ✅ injecter solde ouverture au 01/01 de l'année détectée
     if (openingRow) {
       const y = detectedYear || new Date().getFullYear();
       entriesToInsert.push({
-        date: new Date(y, 0, 1), // 01/01/yyyy
+        date: new Date(y, 0, 1),
         nomDuCompte: openingRow.nomDuCompte,
         echeance: null,
-        communication: 'SOLDE OUVERTURE',
+        communication: "SOLDE OUVERTURE",
         partner: null,
         debit: openingRow.debit || 0,
         credit: openingRow.credit || 0,
@@ -218,21 +242,21 @@ async function importGrandLivre(req, res) {
     }
 
     if (entriesToInsert.length === 0) {
-      return res.status(400).json({ message: 'Aucune ligne valide.' });
+      return res.status(400).json({ ok: false, message: "Aucune ligne valide." });
     }
 
-    // ✅ transaction : on crée le batch + on insert les lignes
     const sequelize = LedgerEntry.sequelize;
 
     await sequelize.transaction(async (t) => {
+      // ✅ userId obligatoire dans ImportBatchModel => on le met
       await ImportBatch.create(
         {
           id: batchId,
-          type: 'grand_livre',
+          type: "grand_livre",
           fileName: req.file.originalname || null,
           sheetName: usedSheetName,
           importedCount: 0,
-          userId: req.user.sub, // ✅ AJOUT
+          userId: req.user.sub,
         },
         { transaction: t }
       );
@@ -252,7 +276,8 @@ async function importGrandLivre(req, res) {
     });
 
     return res.json({
-      message: 'Import terminé',
+      ok: true,
+      message: "Import terminé",
       batchId,
       imported: entriesToInsert.length,
       sheet: usedSheetName,
@@ -260,11 +285,11 @@ async function importGrandLivre(req, res) {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Erreur lors de l'import du grand livre" });
+    return res.status(500).json({ ok: false, message: "Erreur lors de l'import du grand livre" });
   } finally {
     try {
       if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    } catch (_) { }
+    } catch (_) {}
   }
 }
 
