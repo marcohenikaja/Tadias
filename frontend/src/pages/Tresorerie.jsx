@@ -19,7 +19,7 @@ const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const cleanBase = (s) => (s || '').replace(/\/+$/, '');
-const API_BASE = cleanBase(process.env.REACT_APP_API_BASE) ;
+const API_BASE = cleanBase(process.env.REACT_APP_API_BASE);
 
 export default function Tresorerie({ mode = "light" }) {
   const screens = useBreakpoint();
@@ -52,6 +52,15 @@ export default function Tresorerie({ mode = "light" }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const token = useMemo(() => localStorage.getItem('token'), []);
+  const headers = useMemo(() => {
+    const h = { Accept: 'application/json' };
+    if (token) h.Authorization = `Bearer ${token}`;
+    return h;
+  }, [token]);
+
+
+
   const formatAr = useCallback((v) => {
     const n = Number(v || 0);
     return `${n.toLocaleString('fr-FR')} Ar`;
@@ -67,56 +76,62 @@ export default function Tresorerie({ mode = "light" }) {
   }, []);
 
   // ✅ fetch avec mode=global ou month=YYYY-MM + cache
-  const fetchTresorerie = useCallback(async (mStr, retryCount = 0) => {
-    const controller = new AbortController();
-    let timeoutId;
+ const fetchTresorerie = useCallback(async (mStr, retryCount = 0) => {
+  const controller = new AbortController();
+  let timeoutId;
 
-    const cacheKey = isGlobal ? `tresorerie_cache_global` : `tresorerie_cache_${mStr}`;
+  const cacheKey = isGlobal ? `tresorerie_cache_global` : `tresorerie_cache_${mStr}`;
 
-    try {
-      setLoading(true);
-      setError('');
-      timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    setLoading(true);
+    setError('');
+    timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const params = new URLSearchParams();
-      if (isGlobal) {
-        params.set('mode', 'global');
-      } else {
-        params.set('month', mStr);
-      }
+    const params = new URLSearchParams();
+    if (isGlobal) params.set('mode', 'global');
+    else params.set('month', mStr);
 
-      const url = `${API_BASE}/api/tresorerie?${params.toString()}`;
-      const res = await fetch(url, { signal: controller.signal });
-      if (!res.ok) throw new Error('Erreur lors du chargement des données de Cash estimé');
+    const url = `${API_BASE}/api/tresorerie?${params.toString()}`;
 
-      const json = await res.json();
-      setData(json);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers, // ✅ AJOUT
+    });
 
-      localStorage.setItem(cacheKey, JSON.stringify({ data: json, timestamp: Date.now() }));
-    } catch (e) {
-      // fallback cache (1h)
-      try {
-        const cache = localStorage.getItem(cacheKey);
-        if (cache) {
-          const { data: cachedData, timestamp } = JSON.parse(cache);
-          if (Date.now() - timestamp < 3600000) {
-            setData(cachedData);
-            setError('');
-            return;
-          }
-        }
-      } catch (_) {}
-
-      if (retryCount < 2 && e?.name !== 'AbortError') {
-        setTimeout(() => fetchTresorerie(mStr, retryCount + 1), 1500 * (retryCount + 1));
-      } else {
-        setError(e?.name === 'AbortError' ? 'Timeout du serveur' : (e?.message || 'Erreur inconnue'));
-      }
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-      setLoading(false);
+    if (!res.ok) {
+      const err = new Error(`Erreur ${res.status}: ${res.statusText}`);
+      err.status = res.status;
+      throw err;
     }
-  }, [isGlobal]);
+
+    const json = await res.json();
+    setData(json);
+
+    localStorage.setItem(cacheKey, JSON.stringify({ data: json, timestamp: Date.now() }));
+  } catch (e) {
+    // fallback cache (1h)
+    try {
+      const cache = localStorage.getItem(cacheKey);
+      if (cache) {
+        const { data: cachedData, timestamp } = JSON.parse(cache);
+        if (Date.now() - timestamp < 3600000) {
+          setData(cachedData);
+          setError('');
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (retryCount < 2 && e?.name !== 'AbortError') {
+      setTimeout(() => fetchTresorerie(mStr, retryCount + 1), 1500 * (retryCount + 1));
+    } else {
+      setError(e?.name === 'AbortError' ? 'Timeout du serveur' : (e?.message || 'Erreur inconnue'));
+    }
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+    setLoading(false);
+  }
+}, [isGlobal, headers, API_BASE]);
 
   useEffect(() => {
     fetchTresorerie(monthStr);
@@ -293,29 +308,29 @@ export default function Tresorerie({ mode = "light" }) {
                       typeof cover === 'number' ||
                       typeof ecart === 'number' ||
                       typeof pct === 'number') && (
-                      <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>
-                        {typeof burn === 'number' && (
-                          <span style={{ marginRight: 12 }}>
-                            Burn ≈ <b>{formatAr(Math.round(burn))}</b>/j
-                          </span>
-                        )}
-                        {typeof cover === 'number' && (
-                          <span style={{ marginRight: 12 }}>
-                            Couverture ≈ <b>{Number(cover).toFixed(1)}</b> j
-                          </span>
-                        )}
-                        {typeof ecart === 'number' && (
-                          <span style={{ marginRight: 12 }}>
-                            Écart ≈ <b>{formatAr(Math.round(ecart))}</b>
-                          </span>
-                        )}
-                        {typeof pct === 'number' && (
-                          <span>
-                            Variation ≈ <b>{pct.toFixed(1)}%</b>
-                          </span>
-                        )}
-                      </div>
-                    )}
+                        <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>
+                          {typeof burn === 'number' && (
+                            <span style={{ marginRight: 12 }}>
+                              Burn ≈ <b>{formatAr(Math.round(burn))}</b>/j
+                            </span>
+                          )}
+                          {typeof cover === 'number' && (
+                            <span style={{ marginRight: 12 }}>
+                              Couverture ≈ <b>{Number(cover).toFixed(1)}</b> j
+                            </span>
+                          )}
+                          {typeof ecart === 'number' && (
+                            <span style={{ marginRight: 12 }}>
+                              Écart ≈ <b>{formatAr(Math.round(ecart))}</b>
+                            </span>
+                          )}
+                          {typeof pct === 'number' && (
+                            <span>
+                              Variation ≈ <b>{pct.toFixed(1)}%</b>
+                            </span>
+                          )}
+                        </div>
+                      )}
                   </div>
                 }
               />
