@@ -13,6 +13,7 @@ import {
   Alert,
   Spin,
   Grid,
+  Select,
 } from "antd";
 import {
   InboxOutlined,
@@ -21,6 +22,7 @@ import {
   EyeOutlined,
   DownloadOutlined,
   ExclamationCircleOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
@@ -50,7 +52,6 @@ function getExt(filename = "") {
 
 function isPreviewable(filename = "") {
   const ext = getExt(filename);
-  // preview navigateur OK:
   return ["pdf", "png", "jpg", "jpeg", "webp"].includes(ext);
 }
 
@@ -77,6 +78,22 @@ export default function FacturesManager({ mode = "light" }) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
+  // ✅ user / admin
+  const me = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const isAdmin = (me?.role || me?.profil) === "admin";
+
+  // ✅ liste users pour admin (optionnel)
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState("");
+
   const token = localStorage.getItem("token");
   const headers = useMemo(() => {
     const h = { Accept: "application/json" };
@@ -84,11 +101,38 @@ export default function FacturesManager({ mode = "light" }) {
     return h;
   }, [token]);
 
+  // ✅ charge users si admin
+  const fetchUsers = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      setUsersLoading(true);
+      const res = await fetch(`${API_BASE}/api/admin/users`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || `Erreur ${res.status}`);
+      setUsers(Array.isArray(json.users) ? json.users : []);
+    } catch (e) {
+      message.error(e?.message || "Erreur chargement users");
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [isAdmin, headers]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  // ✅ fetch factures (admin peut filtrer par userId)
   const fetchFactures = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`${API_BASE}/api/factures`, { headers });
+
+      const qs =
+        isAdmin && selectedUserId
+          ? `?userId=${encodeURIComponent(selectedUserId)}`
+          : "";
+
+      const res = await fetch(`${API_BASE}/api/factures${qs}`, { headers });
       if (!res.ok) throw new Error(`Erreur ${res.status}: ${res.statusText}`);
       const json = await res.json();
       setFiles(Array.isArray(json.files) ? json.files : []);
@@ -97,7 +141,7 @@ export default function FacturesManager({ mode = "light" }) {
     } finally {
       setLoading(false);
     }
-  }, [headers]);
+  }, [headers, isAdmin, selectedUserId]);
 
   useEffect(() => {
     fetchFactures();
@@ -108,28 +152,45 @@ export default function FacturesManager({ mode = "light" }) {
     if (!q) return files;
 
     return (files || []).filter((f) => {
-      const hay = [
-        f?.filename,
-        f?.path,
-        f?.size,
-        f?.updatedAt,
-      ]
+      const hay = [f?.filename, f?.path, f?.size, f?.updatedAt]
         .map((x) => String(x ?? "").toLowerCase())
         .join(" | ");
       return hay.includes(q);
     });
   }, [files, search]);
 
-  const openFile = (p) => {
-    const url = `${API_BASE}${p}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
+  const openFile = (p) => window.open(`${API_BASE}${p}`, "_blank", "noopener,noreferrer");
+  const downloadFile = (p) => window.open(`${API_BASE}${p}`, "_blank", "noopener,noreferrer");
 
-  const downloadFile = (p) => {
-    // simple: ouvre direct (le navigateur gère le download selon headers)
-    const url = `${API_BASE}${p}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
+  const deleteFile = useCallback(
+    async (filename) => {
+      try {
+        setBusy(filename);
+
+        // ✅ admin supprime dans le dossier du user sélectionné (si choisi)
+        const qs =
+          isAdmin && selectedUserId
+            ? `?userId=${encodeURIComponent(selectedUserId)}`
+            : "";
+
+        const res = await fetch(
+          `${API_BASE}/api/factures/${encodeURIComponent(filename)}${qs}`,
+          { method: "DELETE", headers }
+        );
+
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || `Erreur ${res.status}`);
+
+        message.success("Fichier supprimé");
+        await fetchFactures();
+      } catch (e) {
+        message.error(e?.message || "Erreur suppression");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [headers, fetchFactures, isAdmin, selectedUserId]
+  );
 
   const confirmDelete = (record) => {
     Modal.confirm({
@@ -155,29 +216,7 @@ export default function FacturesManager({ mode = "light" }) {
     });
   };
 
-  const deleteFile = useCallback(
-    async (filename) => {
-      try {
-        setBusy(filename);
-        const res = await fetch(
-          `${API_BASE}/api/factures/${encodeURIComponent(filename)}`,
-          { method: "DELETE", headers }
-        );
-        const json = await res.json().catch(() => ({}));
-
-        if (!res.ok) throw new Error(json?.message || `Erreur ${res.status}`);
-
-        message.success("Fichier supprimé");
-        await fetchFactures();
-      } catch (e) {
-        message.error(e?.message || "Erreur suppression");
-      } finally {
-        setBusy(null);
-      }
-    },
-    [headers, fetchFactures]
-  );
-
+  // ✅ upload: admin peut uploader “pour” un user via FormData userId (optionnel)
   const uploadProps = useMemo(
     () => ({
       name: "files",
@@ -185,6 +224,13 @@ export default function FacturesManager({ mode = "light" }) {
       action: `${API_BASE}/api/factures/upload`,
       headers,
       showUploadList: false,
+
+      data: () => {
+        // envoyé en multipart: userId=...
+        if (isAdmin && selectedUserId) return { userId: selectedUserId };
+        return {};
+      },
+
       onChange(info) {
         const { status } = info.file;
 
@@ -195,17 +241,15 @@ export default function FacturesManager({ mode = "light" }) {
 
         if (status === "done") {
           setUploading(false);
-          const res = info.file.response;
-          message.success(res?.message || "Fichiers envoyés");
+          message.success(info.file.response?.message || "Fichiers envoyés");
           fetchFactures();
         } else if (status === "error") {
           setUploading(false);
-          const res = info.file.response;
-          message.error(res?.message || "Erreur upload");
+          message.error(info.file.response?.message || "Erreur upload");
         }
       },
     }),
-    [headers, fetchFactures]
+    [headers, fetchFactures, isAdmin, selectedUserId]
   );
 
   const columns = useMemo(() => {
@@ -215,9 +259,7 @@ export default function FacturesManager({ mode = "light" }) {
         dataIndex: "filename",
         render: (v) => (
           <div style={{ minWidth: 0 }}>
-            <Text strong style={{ color: ui.textPrimary }}>
-              {v}
-            </Text>
+            <Text strong style={{ color: ui.textPrimary }}>{v}</Text>
             <div style={{ fontSize: 12, color: ui.textSecondary }}>
               {isPreviewable(v) ? "Aperçu dispo" : "Téléchargement"}
             </div>
@@ -242,35 +284,18 @@ export default function FacturesManager({ mode = "light" }) {
         width: 210,
         render: (_, r) => (
           <Space wrap>
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              disabled={!r?.path}
-              onClick={() => openFile(r.path)}
-            >
+            <Button size="small" icon={<EyeOutlined />} disabled={!r?.path} onClick={() => openFile(r.path)}>
               Voir
             </Button>
-            <Button
-              size="small"
-              icon={<DownloadOutlined />}
-              disabled={!r?.path}
-              onClick={() => downloadFile(r.path)}
-            >
+            <Button size="small" icon={<DownloadOutlined />} disabled={!r?.path} onClick={() => downloadFile(r.path)}>
               Télécharger
             </Button>
-            <Button
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-              loading={busy === r.filename}
-              onClick={() => confirmDelete(r)}
-            />
+            <Button danger size="small" icon={<DeleteOutlined />} loading={busy === r.filename} onClick={() => confirmDelete(r)} />
           </Space>
         ),
       },
     ];
 
-    // mobile: on simplifie
     if (isMobile) {
       return [
         {
@@ -306,27 +331,41 @@ export default function FacturesManager({ mode = "light" }) {
     border: ui.cardBorder,
   };
 
+  const userOptions = useMemo(() => {
+    return (users || []).map((u) => ({
+      value: String(u.id),
+      label: `${u.name || "—"} (${u.email})`,
+    }));
+  }, [users]);
+
   return (
     <div style={{ padding: isMobile ? 8 : 24 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 14,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
         <div>
           <Title level={3} style={{ margin: 0, color: ui.textPrimary }}>
             Documents comptables
           </Title>
           <Text style={{ color: ui.textSecondary }}>
-            Envoyez et retrouvez vos factures / pièces comptables au même endroit.
+            Envoyez et retrouvez vos factures / pièces comptables.
           </Text>
         </div>
 
         <Space wrap style={{ width: isMobile ? "100%" : "auto" }}>
+          {isAdmin && (
+            <Select
+              value={selectedUserId || undefined}
+              onChange={(v) => setSelectedUserId(String(v || ""))}
+              loading={usersLoading}
+              placeholder="(Admin) Choisir un utilisateur"
+              style={{ width: isMobile ? "100%" : 360, minWidth: 0 }}
+              options={userOptions}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              suffixIcon={<UserOutlined />}
+            />
+          )}
+
           <Input
             allowClear
             placeholder="Rechercher (nom, date, taille...)"
@@ -334,31 +373,35 @@ export default function FacturesManager({ mode = "light" }) {
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: isMobile ? "100%" : 320, minWidth: 0 }}
           />
+
           <Button icon={<ReloadOutlined />} onClick={fetchFactures} loading={loading}>
             Actualiser
           </Button>
+
+          {isAdmin && (
+            <Button onClick={fetchUsers} loading={usersLoading}>
+              Recharger users
+            </Button>
+          )}
         </Space>
       </div>
 
-      {error && (
-        <Alert
-          type="error"
-          showIcon
-          message="Erreur"
-          description={error}
-          style={{ marginBottom: 12 }}
-        />
-      )}
+      {error && <Alert type="error" showIcon message="Erreur" description={error} style={{ marginBottom: 12 }} />}
 
       <Card bordered={false} style={{ ...cardBase, marginBottom: 14 }}>
         <Title level={4} style={{ marginBottom: 4, color: ui.textPrimary }}>
           Envoyer des fichiers
         </Title>
-        <Text style={{ fontSize: 13, color: ui.textSecondary }}>
-          Glissez-déposez vos PDF / images / Excel. Ils seront listés juste en dessous.
-        </Text>
 
-        <div style={{ marginTop: 14 }}>
+        {isAdmin && (
+          <Text style={{ display: "block", marginBottom: 8, color: ui.textSecondary }}>
+            {selectedUserId
+              ? `Mode admin : upload pour l’utilisateur sélectionné.`
+              : `Mode admin : si aucun utilisateur n’est sélectionné, l’upload est pour vous.`}
+          </Text>
+        )}
+
+        <div style={{ marginTop: 10 }}>
           <Dragger {...uploadProps} disabled={uploading || !!busy}>
             <p style={{ marginBottom: 8 }}>
               <InboxOutlined style={{ fontSize: 40 }} />
@@ -367,7 +410,7 @@ export default function FacturesManager({ mode = "light" }) {
               Cliquez ou glissez vos fichiers ici
             </p>
             <p style={{ fontSize: 12, opacity: 0.75 }}>
-              Champs attendu côté API : <strong>files</strong>
+              Champ attendu côté API : <strong>files</strong>
             </p>
           </Dragger>
 
@@ -392,10 +435,7 @@ export default function FacturesManager({ mode = "light" }) {
             rowKey={(r) => r.filename}
             columns={columns}
             dataSource={filtered}
-            pagination={{
-              pageSize: isMobile ? 5 : 10,
-              showSizeChanger: !isMobile,
-            }}
+            pagination={{ pageSize: isMobile ? 5 : 10, showSizeChanger: !isMobile }}
           />
         )}
       </Card>
