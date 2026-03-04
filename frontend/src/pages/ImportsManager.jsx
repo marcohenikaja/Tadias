@@ -30,6 +30,7 @@ import 'dayjs/locale/fr';
 import { useNavigate } from "react-router-dom";
 
 const { useBreakpoint } = Grid;
+
 dayjs.locale('fr');
 
 const { Title, Text } = Typography;
@@ -45,13 +46,11 @@ export default function ImportsManager({ mode = "light" }) {
     const textPrimary = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.88)';
     const textSecondary = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
     const textTertiary = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)';
-    const split = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)';
 
     return {
       textPrimary,
       textSecondary,
       textTertiary,
-      split,
       pageBg: isDark ? '#0f1115' : 'transparent',
 
       cardBg: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
@@ -74,7 +73,7 @@ export default function ImportsManager({ mode = "light" }) {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
-  // ✅ liste users pour assignation
+  // ✅ users pour assignation
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [targetUserId, setTargetUserId] = useState(null);
@@ -98,7 +97,7 @@ export default function ImportsManager({ mode = "light" }) {
     return h;
   }, [token]);
 
-  // ✅ sécurité : page admin only
+  // ✅ sécurité page admin
   useEffect(() => {
     if (!token) {
       navigate("/login", { replace: true });
@@ -127,33 +126,42 @@ export default function ImportsManager({ mode = "light" }) {
     }
   }, [headers]);
 
-  // ✅ fetch users pour le Select
+  // ✅ FIX ICI: API renvoie "users" (pas "items")
   const fetchUsers = useCallback(async () => {
     try {
       setUsersLoading(true);
+
       const res = await fetch(`${API_BASE}/api/admin/users`, { headers });
       if (!res.ok) throw new Error(`Erreur ${res.status}: ${res.statusText}`);
+
       const json = await res.json();
-      const list = Array.isArray(json.items) ? json.items : [];
+
+      // ✅ accepte json.users OU json.items
+      const list = Array.isArray(json.users)
+        ? json.users
+        : (Array.isArray(json.items) ? json.items : []);
+
       setUsers(list);
 
-      // valeur par défaut : admin lui-même si possible, sinon 1er user
-      const fallback = me?.id || list[0]?.id || null;
-      setTargetUserId((prev) => prev || fallback);
+      // default: admin lui-même si possible, sinon 1er user
+      const fallback =
+        me?.id != null ? String(me.id)
+          : (list[0]?.id != null ? String(list[0].id) : null);
+
+      setTargetUserId((prev) => (prev ? String(prev) : fallback));
     } catch (e) {
       console.warn(e);
       message.error(e?.message || "Impossible de charger la liste des utilisateurs");
     } finally {
       setUsersLoading(false);
     }
-  }, [headers, me]);
+  }, [API_BASE, headers, me]);
 
   useEffect(() => {
     fetchImports();
   }, [fetchImports]);
 
   useEffect(() => {
-    // on charge les users en même temps
     fetchUsers();
   }, [fetchUsers]);
 
@@ -272,7 +280,7 @@ export default function ImportsManager({ mode = "light" }) {
     });
   };
 
-  // ✅ Upload avec assignation (targetUserId) en multipart/form-data
+  // ✅ Upload avec assignation : envoie targetUserId dans form-data
   const propsUpload = useMemo(
     () => ({
       name: 'file',
@@ -282,9 +290,9 @@ export default function ImportsManager({ mode = "light" }) {
       showUploadList: false,
       headers,
 
-      // ✅ data évalué AU MOMENT de l’upload (plus fiable)
+      // ✅ évalué au moment de l’upload
       data() {
-        return { targetUserId };
+        return { targetUserId: targetUserId ? String(targetUserId) : "" };
       },
 
       beforeUpload() {
@@ -409,7 +417,13 @@ export default function ImportsManager({ mode = "light" }) {
 
             <Space>
               <Button size="small" icon={<CopyOutlined />} onClick={() => copy(record.id)} />
-              <Button danger size="small" icon={<DeleteOutlined />} loading={busyId === record.id} onClick={() => confirmDelete(record)} />
+              <Button
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                loading={busyId === record.id}
+                onClick={() => confirmDelete(record)}
+              />
             </Space>
           </div>
         </div>
@@ -433,7 +447,7 @@ export default function ImportsManager({ mode = "light" }) {
             <HistoryOutlined /> Gestion des imports
           </Title>
           <Text style={{ color: ui.textSecondary }}>
-            Importer un grand livre + historique des imports + suppression par batch...
+            Importer un grand livre + historique des imports + suppression par batch.
           </Text>
         </div>
 
@@ -481,11 +495,12 @@ export default function ImportsManager({ mode = "light" }) {
         <Title level={4} style={{ marginBottom: 4, color: ui.textPrimary }}>
           Import du fichier Grand livre
         </Title>
+
         <Text style={{ fontSize: 13, color: ui.textSecondary }}>
-          Chargez votre fichier Excel <strong>grand_livre.xlsx</strong> (onglet <strong>"Grand livre"</strong>) pour mettre à jour les indicateurs.
+          Chargez votre fichier Excel <strong>grand_livre.xlsx</strong> (onglet <strong>"Grand livre"</strong>).
         </Text>
 
-        {/* ✅ Assignation user */}
+        {/* ✅ Assignation */}
         <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <Text style={{ color: ui.textSecondary }}>Importer pour :</Text>
 
@@ -503,6 +518,7 @@ export default function ImportsManager({ mode = "light" }) {
               label: u.name ? `${u.name} (${u.email})` : (u.email || `User ${u.id}`),
             }))}
           />
+
           <Button onClick={fetchUsers} disabled={usersLoading} icon={<ReloadOutlined />}>
             Recharger users
           </Button>
@@ -525,7 +541,7 @@ export default function ImportsManager({ mode = "light" }) {
               Cliquez ou glissez un fichier Excel ici
             </p>
             <p style={{ fontSize: 12, color: ui.textSecondary }}>
-              Formats acceptés : .xls, .xlsx. Onglet <strong>Grand livre</strong>.
+              Formats acceptés : .xls, .xlsx.
             </p>
           </Dragger>
 
