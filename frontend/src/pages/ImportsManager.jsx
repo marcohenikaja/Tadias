@@ -433,7 +433,7 @@ export default function ImportsManager({ mode = "light" }) {
             <HistoryOutlined /> Gestion des imports
           </Title>
           <Text style={{ color: ui.textSecondary }}>
-            Importer un grand livre + historique des imports + suppression par batch.
+            Importer un grand livre + historique des imports + suppression par batch...
           </Text>
         </div>
 
