@@ -30,7 +30,6 @@ import 'dayjs/locale/fr';
 import { useNavigate } from "react-router-dom";
 
 const { useBreakpoint } = Grid;
-
 dayjs.locale('fr');
 
 const { Title, Text } = Typography;
@@ -126,17 +125,13 @@ export default function ImportsManager({ mode = "light" }) {
     }
   }, [headers]);
 
-  // ✅ fetch users (API renvoie "users")
   const fetchUsers = useCallback(async () => {
     try {
       setUsersLoading(true);
-
       const res = await fetch(`${API_BASE}/api/admin/users`, { headers });
       if (!res.ok) throw new Error(`Erreur ${res.status}: ${res.statusText}`);
-
       const json = await res.json();
 
-      // ✅ accepte json.users OU json.items
       const list = Array.isArray(json.users)
         ? json.users
         : (Array.isArray(json.items) ? json.items : []);
@@ -166,7 +161,7 @@ export default function ImportsManager({ mode = "light" }) {
     }));
   }, [users]);
 
-  // ✅ si targetUserId est invalide -> choisir automatiquement le 1er user (ou admin self)
+  // ✅ s'assurer que targetUserId correspond à une option (sinon -> self ou 1er)
   useEffect(() => {
     if (!optionsUsers.length) return;
 
@@ -180,11 +175,12 @@ export default function ImportsManager({ mode = "light" }) {
     }
   }, [optionsUsers, targetUserId, me]);
 
+  // ✅ Recherche robuste
   const filtered = useMemo(() => {
-    const s = (search || '').trim().toLowerCase();
-    if (!s) return items;
+    const q = String(search || "").trim().toLowerCase();
+    if (!q) return items;
 
-    return items.filter((it) => {
+    return (items || []).filter((it) => {
       const hay = [
         it?.id,
         it?.type,
@@ -192,12 +188,13 @@ export default function ImportsManager({ mode = "light" }) {
         it?.sheetName,
         it?.importedCount,
         it?.createdAt,
-        it?.user?.email,
         it?.user?.name,
+        it?.user?.email,
       ]
-        .map((x) => String(x ?? '').toLowerCase())
-        .join(' | ');
-      return hay.includes(s);
+        .map(v => (v == null ? "" : String(v)).toLowerCase())
+        .join(" | ");
+
+      return hay.includes(q);
     });
   }, [items, search]);
 
@@ -295,7 +292,7 @@ export default function ImportsManager({ mode = "light" }) {
     });
   };
 
-  // ✅ Upload: envoie targetUserId
+  // ✅ Upload: envoie targetUserId dans multipart/form-data
   const propsUpload = useMemo(
     () => ({
       name: 'file',
@@ -465,13 +462,13 @@ export default function ImportsManager({ mode = "light" }) {
           </Text>
         </div>
 
-        <Space wrap>
+        <Space wrap style={{ width: isMobile ? "100%" : "auto" }}>
           <Input
             allowClear
             placeholder="Rechercher (fichier, type, batchId...)"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ minWidth: 280 }}
+            onChange={(e) => setSearch(e.target.value)}   // ✅ important
+            style={{ width: isMobile ? "100%" : 280, minWidth: 0 }}
           />
 
           <Button icon={<TeamOutlined />} onClick={() => navigate("/admin-users")}>
@@ -495,7 +492,13 @@ export default function ImportsManager({ mode = "light" }) {
       </div>
 
       {error && (
-        <Alert type="error" showIcon message="Erreur" description={error} style={{ marginBottom: 12 }} />
+        <Alert
+          type="error"
+          showIcon
+          message="Erreur"
+          description={error}
+          style={{ marginBottom: 12 }}
+        />
       )}
 
       {/* Upload */}
@@ -507,7 +510,7 @@ export default function ImportsManager({ mode = "light" }) {
           Chargez votre fichier Excel <strong>grand_livre.xlsx</strong> (onglet <strong>"Grand livre"</strong>).
         </Text>
 
-        {/* ✅ RESPONSIVE Select */}
+        {/* Select responsive */}
         <div
           style={{
             marginTop: 14,
@@ -518,9 +521,7 @@ export default function ImportsManager({ mode = "light" }) {
             alignItems: isMobile ? "stretch" : "center",
           }}
         >
-          <Text style={{ color: ui.textSecondary }}>
-            Importer pour :
-          </Text>
+          <Text style={{ color: ui.textSecondary }}>Importer pour :</Text>
 
           <Select
             value={targetUserId ? String(targetUserId) : undefined}
@@ -606,7 +607,7 @@ export default function ImportsManager({ mode = "light" }) {
           <Table
             rowKey="id"
             columns={isMobile ? mobileColumns : desktopColumns}
-            dataSource={filtered}
+            dataSource={filtered}  // ✅ important
             pagination={{
               pageSize: isMobile ? 5 : 10,
               showSizeChanger: !isMobile,
