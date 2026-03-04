@@ -30,6 +30,7 @@ import 'dayjs/locale/fr';
 import { useNavigate } from "react-router-dom";
 
 const { useBreakpoint } = Grid;
+
 dayjs.locale('fr');
 
 const { Title, Text } = Typography;
@@ -165,7 +166,7 @@ export default function ImportsManager({ mode = "light" }) {
     }));
   }, [users]);
 
-  // ✅ si targetUserId est invalide -> choisir automatiquement le 1er user
+  // ✅ si targetUserId est invalide -> choisir automatiquement le 1er user (ou admin self)
   useEffect(() => {
     if (!optionsUsers.length) return;
 
@@ -173,7 +174,6 @@ export default function ImportsManager({ mode = "light" }) {
     const exists = current ? optionsUsers.some(o => o.value === current) : false;
 
     if (!exists) {
-      // priorité: admin lui-même si présent dans la liste, sinon 1er user
       const adminSelf = me?.id != null ? String(me.id) : null;
       const canUseSelf = adminSelf && optionsUsers.some(o => o.value === adminSelf);
       setTargetUserId(canUseSelf ? adminSelf : optionsUsers[0].value);
@@ -295,7 +295,7 @@ export default function ImportsManager({ mode = "light" }) {
     });
   };
 
-  // ✅ Upload: envoie targetUserId dans multipart/form-data
+  // ✅ Upload: envoie targetUserId
   const propsUpload = useMemo(
     () => ({
       name: 'file',
@@ -507,27 +507,57 @@ export default function ImportsManager({ mode = "light" }) {
           Chargez votre fichier Excel <strong>grand_livre.xlsx</strong> (onglet <strong>"Grand livre"</strong>).
         </Text>
 
-        {/* ✅ Select assignation */}
-        <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <Text style={{ color: ui.textSecondary }}>Importer pour :</Text>
+        {/* ✅ RESPONSIVE Select */}
+        <div
+          style={{
+            marginTop: 14,
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
+          }}
+        >
+          <Text style={{ color: ui.textSecondary }}>
+            Importer pour :
+          </Text>
 
           <Select
-            style={{ minWidth: 360 }}
             value={targetUserId ? String(targetUserId) : undefined}
             onChange={(v) => setTargetUserId(String(v))}
             loading={usersLoading}
             placeholder="Choisir un utilisateur"
             showSearch
             optionFilterProp="children"
+            style={{
+              width: isMobile ? "100%" : 360,
+              minWidth: 0,
+            }}
           >
             {optionsUsers.map(opt => (
               <Select.Option key={opt.value} value={opt.value}>
-                {opt.label}
+                <span
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={opt.label}
+                >
+                  {opt.label}
+                </span>
               </Select.Option>
             ))}
           </Select>
 
-          <Button onClick={fetchUsers} disabled={usersLoading} icon={<ReloadOutlined />}>
+          <Button
+            onClick={fetchUsers}
+            disabled={usersLoading}
+            icon={<ReloadOutlined />}
+            style={{ width: isMobile ? "100%" : "auto" }}
+          >
             Recharger users
           </Button>
         </div>
