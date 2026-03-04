@@ -60,21 +60,27 @@ const uploadExcel = multer({
 // =========================
 // Multer Factures
 // =========================
+// =========================
+// Multer Factures (PAR USER)
+// =========================
 const storageFactures = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_FACTURES_DIR),
+  destination: (req, file, cb) => {
+    const userId = req.user?.sub;
+    if (!userId) return cb(new Error("Non authentifié"));
+
+    const userDir = path.join(UPLOAD_FACTURES_DIR, String(userId));
+    fs.mkdirSync(userDir, { recursive: true });
+    cb(null, userDir);
+  },
+
   filename: (req, file, cb) => {
+    // ✅ sécurise et rend unique
     const safeName = file.originalname.replace(/[/\\?%*:|"<>]/g, "_");
-    const fullPath = path.join(UPLOAD_FACTURES_DIR, safeName);
-
-    if (!fs.existsSync(fullPath)) return cb(null, safeName);
-
     const ext = path.extname(safeName);
     const base = path.basename(safeName, ext);
 
-    let i = 1;
-    while (fs.existsSync(path.join(UPLOAD_FACTURES_DIR, `${base}(${i})${ext}`))) i += 1;
-
-    cb(null, `${base}(${i})${ext}`);
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${base}${ext}`;
+    cb(null, unique);
   },
 });
 
