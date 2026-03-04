@@ -11,9 +11,10 @@ import {
   Spin,
   Modal,
   message,
-  Tooltip,
   Upload,
   Divider,
+  Select,
+  Grid,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -27,10 +28,8 @@ import {
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { useNavigate } from "react-router-dom";
-import { Grid } from 'antd';
 
 const { useBreakpoint } = Grid;
-
 dayjs.locale('fr');
 
 const { Title, Text } = Typography;
@@ -42,7 +41,6 @@ const API_BASE = cleanBase(process.env.REACT_APP_API_BASE);
 export default function ImportsManager({ mode = "light" }) {
   const isDark = mode === "dark";
 
-  // ✅ Styles globaux inline (pas de CSS)
   const ui = useMemo(() => {
     const textPrimary = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.88)';
     const textSecondary = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
@@ -76,6 +74,11 @@ export default function ImportsManager({ mode = "light" }) {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
+  // ✅ liste users pour assignation
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [targetUserId, setTargetUserId] = useState(null);
+
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
@@ -95,6 +98,20 @@ export default function ImportsManager({ mode = "light" }) {
     return h;
   }, [token]);
 
+  // ✅ sécurité : page admin only
+  useEffect(() => {
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (!me || me.role !== "admin") {
+      message.error("Cette page est réservée aux admins.");
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fetchImports = useCallback(async () => {
     try {
       setLoading(true);
@@ -110,22 +127,35 @@ export default function ImportsManager({ mode = "light" }) {
     }
   }, [headers]);
 
+  // ✅ fetch users pour le Select
+  const fetchUsers = useCallback(async () => {
+    try {
+      setUsersLoading(true);
+      const res = await fetch(`${API_BASE}/api/admin/users`, { headers });
+      if (!res.ok) throw new Error(`Erreur ${res.status}: ${res.statusText}`);
+      const json = await res.json();
+      const list = Array.isArray(json.items) ? json.items : [];
+      setUsers(list);
+
+      // valeur par défaut : admin lui-même si possible, sinon 1er user
+      const fallback = me?.id || list[0]?.id || null;
+      setTargetUserId((prev) => prev || fallback);
+    } catch (e) {
+      console.warn(e);
+      message.error(e?.message || "Impossible de charger la liste des utilisateurs");
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [headers, me]);
+
   useEffect(() => {
     fetchImports();
   }, [fetchImports]);
 
   useEffect(() => {
-    if (!token) {
-      navigate("/login", { replace: true });
-      return;
-    }
-    if (!me || me.role !== "admin") {
-      message.error("Cette page est réservée aux admins.");
-      navigate("/dashboard", { replace: true });
-      return;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // on charge les users en même temps
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filtered = useMemo(() => {
     const s = (search || '').trim().toLowerCase();
@@ -139,6 +169,8 @@ export default function ImportsManager({ mode = "light" }) {
         it?.sheetName,
         it?.importedCount,
         it?.createdAt,
+        it?.user?.email,
+        it?.user?.name,
       ]
         .map((x) => String(x ?? '').toLowerCase())
         .join(' | ');
@@ -240,6 +272,7 @@ export default function ImportsManager({ mode = "light" }) {
     });
   };
 
+  // ✅ Upload avec assignation (targetUserId) en multipart/form-data
   const propsUpload = useMemo(
     () => ({
       name: 'file',
@@ -248,6 +281,20 @@ export default function ImportsManager({ mode = "light" }) {
       action: `${API_BASE}/import/grand-livre`,
       showUploadList: false,
       headers,
+
+      // ✅ data évalué AU MOMENT de l’upload (plus fiable)
+      data() {
+        return { targetUserId };
+      },
+
+      beforeUpload() {
+        if (!targetUserId) {
+          message.error("Choisis un utilisateur avant d’importer.");
+          return Upload.LIST_IGNORE;
+        }
+        return true;
+      },
+
       onChange(info) {
         const { status } = info.file;
 
@@ -267,9 +314,8 @@ export default function ImportsManager({ mode = "light" }) {
           message.error(res?.message || "Erreur lors de l'import du fichier.");
         }
       },
-      onDrop() { },
     }),
-    [headers, fetchImports]
+    [headers, fetchImports, targetUserId]
   );
 
   const desktopColumns = [
@@ -292,7 +338,6 @@ export default function ImportsManager({ mode = "light" }) {
         </div>
       ),
     },
-
     {
       title: 'Type',
       dataIndex: 'type',
@@ -356,6 +401,7 @@ export default function ImportsManager({ mode = "light" }) {
           <Text style={{ fontSize: 12, color: ui.textSecondary }}>
             Par : {record?.user?.name || record?.user?.email || '—'}
           </Text>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={{ color: ui.textPrimary }}>
               Lignes : <strong>{record.importedCount}</strong>
@@ -374,8 +420,8 @@ export default function ImportsManager({ mode = "light" }) {
   const cardBase = {
     borderRadius: 18,
     boxShadow: ui.shadow,
-    background: ui.cardBg,          // ✅ c’est ça qui enlève le blanc
-    border: ui.cardBorder,          // ✅ optionnel, joli en dark
+    background: ui.cardBg,
+    border: ui.cardBorder,
   };
 
   return (
@@ -439,10 +485,33 @@ export default function ImportsManager({ mode = "light" }) {
           Chargez votre fichier Excel <strong>grand_livre.xlsx</strong> (onglet <strong>"Grand livre"</strong>) pour mettre à jour les indicateurs.
         </Text>
 
+        {/* ✅ Assignation user */}
+        <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <Text style={{ color: ui.textSecondary }}>Importer pour :</Text>
+
+          <Select
+            style={{ minWidth: 360 }}
+            value={targetUserId}
+            onChange={setTargetUserId}
+            loading={usersLoading}
+            placeholder="Choisir un utilisateur"
+            showSearch
+            optionFilterProp="label"
+            options={users.map(u => ({
+              value: u.id,
+              label: `${u.name || "—"} (${u.email})`,
+            }))}
+          />
+
+          <Button onClick={fetchUsers} disabled={usersLoading} icon={<ReloadOutlined />}>
+            Recharger users
+          </Button>
+        </div>
+
         <div style={{ marginTop: 18 }}>
           <Dragger
             {...propsUpload}
-            disabled={uploading || busyId === 'LAST' || !!busyId}
+            disabled={!targetUserId || uploading || busyId === 'LAST' || !!busyId}
             style={{
               background: ui.draggerBg,
               border: ui.draggerBorder,
@@ -456,9 +525,7 @@ export default function ImportsManager({ mode = "light" }) {
               Cliquez ou glissez un fichier Excel ici
             </p>
             <p style={{ fontSize: 12, color: ui.textSecondary }}>
-              Formats acceptés : .xls, .xlsx. Onglet <strong>Grand livre</strong> avec les colonnes :
-              <br />
-              <strong>Code, Nom du compte, Date, Communication, Partenaire, Débit, Crédit, Solde</strong>.
+              Formats acceptés : .xls, .xlsx. Onglet <strong>Grand livre</strong>.
             </p>
           </Dragger>
 

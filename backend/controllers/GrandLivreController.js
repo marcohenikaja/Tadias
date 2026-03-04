@@ -5,6 +5,7 @@ const crypto = require("crypto");
 
 const { LedgerEntry } = require("../models/LedgerEntryModel");
 const { ImportBatch } = require("../models/ImportBatchModel");
+const { User } = require("../models/User"); // ✅ AJOUT
 
 // =====================
 // Helpers dates / nombres
@@ -118,6 +119,22 @@ async function importGrandLivre(req, res) {
     return res.status(400).json({ ok: false, message: "Aucun fichier reçu" });
   }
 
+  // ✅ ASSIGNATION USER (admin -> targetUserId)
+  const requesterId = req.user.sub;
+  const requesterRole = req.user.role; // il faut que ton middleware mette role
+  const targetUserId = req.body?.targetUserId;
+
+  let assignedUserId = requesterId;
+
+  // si admin ET targetUserId présent -> assigner
+  if (requesterRole === "admin" && targetUserId) {
+    const u = await User.findByPk(targetUserId);
+    if (!u) {
+      return res.status(400).json({ ok: false, message: "Utilisateur cible introuvable" });
+    }
+    assignedUserId = targetUserId;
+  }
+
   const filePath = req.file.path;
 
   try {
@@ -143,7 +160,7 @@ async function importGrandLivre(req, res) {
       const range = xlsx.utils.decode_range(worksheet["!ref"]);
       range.s.r = headerIdx;
       range.s.c = 0;
-      options.range = range; // sheet_to_json accepte un range object
+      options.range = range;
     }
 
     const rows = xlsx.utils.sheet_to_json(worksheet, options);
@@ -173,7 +190,7 @@ async function importGrandLivre(req, res) {
       const debit = parseNumber(rawDebit);
       const credit = parseNumber(rawCredit);
 
-      // ✅ 1) détecter "SOLDE OUVERTURE"
+      // ✅ détecter "SOLDE OUVERTURE"
       if (nomCol && normalizeText(nomCol).includes("solde ouverture")) {
         if ((credit && credit !== 0) || (debit && debit !== 0)) {
           openingRow = { nomDuCompte: nomCol, debit, credit };
@@ -203,14 +220,13 @@ async function importGrandLivre(req, res) {
         const partner =
           rawPartner && String(rawPartner).trim() ? String(rawPartner).trim() : null;
 
-        // ✅ règle : on ignore si partenaire vide (sauf solde ouverture qu'on ajoute après)
+        // règle : on ignore si partenaire vide
         if (!partner) continue;
 
         const rawEcheance = getCellAny(row, ["Échéance", "Echéance", "Echeance"]);
         const parsedEcheance = parseExcelDate(rawEcheance);
 
         const rawCommunication = getCellAny(row, ["Communication", "Libellé", "Libelle"]);
-
         const nomDuCompteToSave = nomCol || currentAccountLabel || null;
 
         entriesToInsert.push({
@@ -248,7 +264,6 @@ async function importGrandLivre(req, res) {
     const sequelize = LedgerEntry.sequelize;
 
     await sequelize.transaction(async (t) => {
-      // ✅ userId obligatoire dans ImportBatchModel => on le met
       await ImportBatch.create(
         {
           id: batchId,
@@ -256,7 +271,7 @@ async function importGrandLivre(req, res) {
           fileName: req.file.originalname || null,
           sheetName: usedSheetName,
           importedCount: 0,
-          userId: req.user.sub,
+          userId: assignedUserId, // ✅ ICI on met l’utilisateur assigné
         },
         { transaction: t }
       );
@@ -282,6 +297,7 @@ async function importGrandLivre(req, res) {
       imported: entriesToInsert.length,
       sheet: usedSheetName,
       openingDetected: !!openingRow,
+      assignedUserId, // ✅ pour debug/affichage
     });
   } catch (err) {
     console.error(err);
