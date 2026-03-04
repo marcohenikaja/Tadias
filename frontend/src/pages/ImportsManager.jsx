@@ -491,18 +491,18 @@ export default function ImportsManager({ mode = "light" }) {
 
           <Select
             style={{ minWidth: 360 }}
-            value={targetUserId}
-            onChange={setTargetUserId}
+            value={targetUserId ? String(targetUserId) : undefined}
+            onChange={(v) => setTargetUserId(String(v))}
             loading={usersLoading}
             placeholder="Choisir un utilisateur"
             showSearch
             optionFilterProp="label"
-            options={users.map(u => ({
-              value: u.id,
-              label: `${u.name || "—"} (${u.email})`,
+            optionLabelProp="label"
+            options={(users || []).map(u => ({
+              value: String(u.id),
+              label: u.name ? `${u.name} (${u.email})` : (u.email || `User ${u.id}`),
             }))}
           />
-
           <Button onClick={fetchUsers} disabled={usersLoading} icon={<ReloadOutlined />}>
             Recharger users
           </Button>
