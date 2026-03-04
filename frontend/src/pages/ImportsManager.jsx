@@ -529,14 +529,22 @@ export default function ImportsManager({ mode = "light" }) {
             loading={usersLoading}
             placeholder="Choisir un utilisateur"
             showSearch
-            optionFilterProp="children"
+            // ✅ filtre custom (fiable)
+            filterOption={(input, option) => {
+              const label = String(option?.title || option?.children || "").toLowerCase();
+              return label.includes(String(input || "").toLowerCase());
+            }}
             style={{
               width: isMobile ? "100%" : 360,
               minWidth: 0,
             }}
           >
             {optionsUsers.map(opt => (
-              <Select.Option key={opt.value} value={opt.value}>
+              <Select.Option
+                key={opt.value}
+                value={opt.value}
+                title={opt.label}   // ✅ on stocke le texte ici pour le filtre
+              >
                 <span
                   style={{
                     display: "inline-block",
@@ -545,7 +553,6 @@ export default function ImportsManager({ mode = "light" }) {
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}
-                  title={opt.label}
                 >
                   {opt.label}
                 </span>
