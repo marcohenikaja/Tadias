@@ -275,26 +275,6 @@ export default function MainLayout({ children, mode, setMode, onLogout }) {
                   >
                     <UserOutlined style={{ fontSize: 20, color: '#fff' }} />
                   </div>
-
-                  {/* <div style={{ textAlign: 'center', maxWidth: '100%' }}>
-                    <Text
-                      style={{
-                        display: 'block',
-                        color: '#fff',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 120,
-                      }}
-                    >
-                      {displayName}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
-                      {displayRole}
-                    </Text>
-                  </div> */}
                 </div>
 
                 {/* Logout mobile */}
