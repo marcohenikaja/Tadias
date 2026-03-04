@@ -18,10 +18,14 @@ function getAuthUserId(req) {
   return String(userId);
 }
 
-// ✅ user cible : admin peut uploader pour quelqu’un d’autre
+// admin peut choisir le user cible
 function getTargetUserId(req) {
   const authUserId = getAuthUserId(req);
-  if (isAdmin(req) && req.body?.userId) return String(req.body.userId);
+
+  if (isAdmin(req) && req.body?.userId) {
+    return String(req.body.userId);
+  }
+
   return authUserId;
 }
 
@@ -32,7 +36,10 @@ function ensureDir(dir) {
 
 function resolveSafeFacturePath(baseDir, filename) {
   const safeName = path.basename(String(filename || ""));
-  if (!safeName) throw new Error("Nom de fichier invalide");
+
+  if (!safeName) {
+    throw new Error("Nom de fichier invalide");
+  }
 
   const fullPath = path.join(baseDir, safeName);
 
@@ -42,10 +49,14 @@ function resolveSafeFacturePath(baseDir, filename) {
   if (!normalizedFull.startsWith(normalizedDir)) {
     throw new Error("Nom de fichier invalide");
   }
+
   return { safeName, fullPath };
 }
 
-// POST /api/factures/upload
+//////////////////////////////////////////////////////////////////
+// UPLOAD
+//////////////////////////////////////////////////////////////////
+
 exports.uploadFactures = (req, res) => {
   try {
     const targetUserId = getTargetUserId(req);
@@ -57,13 +68,7 @@ exports.uploadFactures = (req, res) => {
       });
     }
 
-    // ✅ dossier du user cible
     const userDir = ensureDir(path.join(FACTURES_DIR, targetUserId));
-
-    // ⚠️ IMPORTANT :
-    // Multer doit sauvegarder les fichiers dans ce userDir.
-    // Sinon, le fichier sera sur le dossier global et le lien ne correspondra pas.
-    // (à corriger côté route multer)
 
     const files = req.files.map((f) => ({
       originalName: f.originalname,
@@ -73,9 +78,14 @@ exports.uploadFactures = (req, res) => {
       mimetype: f.mimetype,
     }));
 
-    return res.status(201).json({ ok: true, files, userId: targetUserId });
+    return res.status(201).json({
+      ok: true,
+      files,
+      userId: targetUserId,
+    });
   } catch (err) {
     const status = err.status || 500;
+
     return res.status(status).json({
       ok: false,
       message:
@@ -87,12 +97,18 @@ exports.uploadFactures = (req, res) => {
   }
 };
 
-// GET /api/factures
+//////////////////////////////////////////////////////////////////
+// LIST FACTURES
+//////////////////////////////////////////////////////////////////
+
 exports.listFactures = async (req, res) => {
   try {
     const authUserId = getAuthUserId(req);
+
     const targetUserId =
-      isAdmin(req) && req.query.userId ? String(req.query.userId) : authUserId;
+      isAdmin(req) && req.query.userId
+        ? String(req.query.userId)
+        : authUserId;
 
     const userDir = path.join(FACTURES_DIR, targetUserId);
 
@@ -102,11 +118,12 @@ exports.listFactures = async (req, res) => {
 
     const names = await fs.promises.readdir(userDir);
 
-    const filesRaw = await Promise.all(
+    const files = await Promise.all(
       names.map(async (filename) => {
         try {
           const full = path.join(userDir, filename);
           const stat = await fs.promises.stat(full);
+
           if (!stat.isFile()) return null;
 
           return {
@@ -121,13 +138,14 @@ exports.listFactures = async (req, res) => {
       })
     );
 
-    const files = filesRaw
+    const cleaned = files
       .filter(Boolean)
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
-    return res.json({ ok: true, files });
+    return res.json({ ok: true, files: cleaned });
   } catch (err) {
     const status = err.status || 500;
+
     return res.status(status).json({
       ok: false,
       message:
@@ -139,18 +157,35 @@ exports.listFactures = async (req, res) => {
   }
 };
 
-// DELETE /api/factures/:filename
+//////////////////////////////////////////////////////////////////
+// DELETE FACTURE
+//////////////////////////////////////////////////////////////////
+
 exports.deleteFacture = async (req, res) => {
   try {
     const authUserId = getAuthUserId(req);
+
     const targetUserId =
-      isAdmin(req) && req.query.userId ? String(req.query.userId) : authUserId;
+      isAdmin(req) && req.query.userId
+        ? String(req.query.userId)
+        : authUserId;
 
     const userDir = path.join(FACTURES_DIR, targetUserId);
 
+    if (!fs.existsSync(userDir)) {
+      return res.status(404).json({
+        ok: false,
+        message: "Aucun fichier trouvé pour cet utilisateur",
+      });
+    }
+
     const filename = req.params.filename;
+
     if (!filename) {
-      return res.status(400).json({ ok: false, message: "filename manquant" });
+      return res.status(400).json({
+        ok: false,
+        message: "filename manquant",
+      });
     }
 
     const { fullPath, safeName } = resolveSafeFacturePath(userDir, filename);
@@ -164,9 +199,14 @@ exports.deleteFacture = async (req, res) => {
 
     await fs.promises.unlink(fullPath);
 
-    return res.json({ ok: true, message: "Fichier supprimé", filename: safeName });
+    return res.json({
+      ok: true,
+      message: "Fichier supprimé",
+      filename: safeName,
+    });
   } catch (err) {
     const status = err.status || 500;
+
     return res.status(status).json({
       ok: false,
       message:
