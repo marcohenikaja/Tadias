@@ -30,7 +30,6 @@ import 'dayjs/locale/fr';
 import { useNavigate } from "react-router-dom";
 
 const { useBreakpoint } = Grid;
-
 dayjs.locale('fr');
 
 const { Title, Text } = Typography;
@@ -97,7 +96,7 @@ export default function ImportsManager({ mode = "light" }) {
     return h;
   }, [token]);
 
-  // ✅ sécurité page admin
+  // ✅ page admin only
   useEffect(() => {
     if (!token) {
       navigate("/login", { replace: true });
@@ -126,7 +125,7 @@ export default function ImportsManager({ mode = "light" }) {
     }
   }, [headers]);
 
-  // ✅ FIX ICI: API renvoie "users" (pas "items")
+  // ✅ fetch users (API renvoie "users")
   const fetchUsers = useCallback(async () => {
     try {
       setUsersLoading(true);
@@ -142,20 +141,13 @@ export default function ImportsManager({ mode = "light" }) {
         : (Array.isArray(json.items) ? json.items : []);
 
       setUsers(list);
-
-      // default: admin lui-même si possible, sinon 1er user
-      const fallback =
-        me?.id != null ? String(me.id)
-          : (list[0]?.id != null ? String(list[0].id) : null);
-
-      setTargetUserId((prev) => (prev ? String(prev) : fallback));
     } catch (e) {
       console.warn(e);
       message.error(e?.message || "Impossible de charger la liste des utilisateurs");
     } finally {
       setUsersLoading(false);
     }
-  }, [API_BASE, headers, me]);
+  }, [API_BASE, headers]);
 
   useEffect(() => {
     fetchImports();
@@ -164,6 +156,29 @@ export default function ImportsManager({ mode = "light" }) {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // ✅ options pour Select
+  const optionsUsers = useMemo(() => {
+    return (users || []).map(u => ({
+      value: String(u.id),
+      label: u.name ? `${u.name} (${u.email})` : (u.email || `User ${u.id}`),
+    }));
+  }, [users]);
+
+  // ✅ si targetUserId est invalide -> choisir automatiquement le 1er user
+  useEffect(() => {
+    if (!optionsUsers.length) return;
+
+    const current = targetUserId ? String(targetUserId) : null;
+    const exists = current ? optionsUsers.some(o => o.value === current) : false;
+
+    if (!exists) {
+      // priorité: admin lui-même si présent dans la liste, sinon 1er user
+      const adminSelf = me?.id != null ? String(me.id) : null;
+      const canUseSelf = adminSelf && optionsUsers.some(o => o.value === adminSelf);
+      setTargetUserId(canUseSelf ? adminSelf : optionsUsers[0].value);
+    }
+  }, [optionsUsers, targetUserId, me]);
 
   const filtered = useMemo(() => {
     const s = (search || '').trim().toLowerCase();
@@ -280,7 +295,7 @@ export default function ImportsManager({ mode = "light" }) {
     });
   };
 
-  // ✅ Upload avec assignation : envoie targetUserId dans form-data
+  // ✅ Upload: envoie targetUserId dans multipart/form-data
   const propsUpload = useMemo(
     () => ({
       name: 'file',
@@ -290,7 +305,6 @@ export default function ImportsManager({ mode = "light" }) {
       showUploadList: false,
       headers,
 
-      // ✅ évalué au moment de l’upload
       data() {
         return { targetUserId: targetUserId ? String(targetUserId) : "" };
       },
@@ -481,13 +495,7 @@ export default function ImportsManager({ mode = "light" }) {
       </div>
 
       {error && (
-        <Alert
-          type="error"
-          showIcon
-          message="Erreur"
-          description={error}
-          style={{ marginBottom: 12 }}
-        />
+        <Alert type="error" showIcon message="Erreur" description={error} style={{ marginBottom: 12 }} />
       )}
 
       {/* Upload */}
@@ -495,12 +503,11 @@ export default function ImportsManager({ mode = "light" }) {
         <Title level={4} style={{ marginBottom: 4, color: ui.textPrimary }}>
           Import du fichier Grand livre
         </Title>
-
         <Text style={{ fontSize: 13, color: ui.textSecondary }}>
           Chargez votre fichier Excel <strong>grand_livre.xlsx</strong> (onglet <strong>"Grand livre"</strong>).
         </Text>
 
-        {/* ✅ Assignation */}
+        {/* ✅ Select assignation */}
         <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <Text style={{ color: ui.textSecondary }}>Importer pour :</Text>
 
@@ -511,13 +518,14 @@ export default function ImportsManager({ mode = "light" }) {
             loading={usersLoading}
             placeholder="Choisir un utilisateur"
             showSearch
-            optionFilterProp="label"
-            optionLabelProp="label"
-            options={(users || []).map(u => ({
-              value: String(u.id),
-              label: u.name ? `${u.name} (${u.email})` : (u.email || `User ${u.id}`),
-            }))}
-          />
+            optionFilterProp="children"
+          >
+            {optionsUsers.map(opt => (
+              <Select.Option key={opt.value} value={opt.value}>
+                {opt.label}
+              </Select.Option>
+            ))}
+          </Select>
 
           <Button onClick={fetchUsers} disabled={usersLoading} icon={<ReloadOutlined />}>
             Recharger users
