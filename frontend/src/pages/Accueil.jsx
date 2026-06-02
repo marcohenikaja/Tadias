@@ -14,19 +14,27 @@ import {
   Divider,
   ConfigProvider,
 } from "antd";
-import { ArrowRightOutlined, CheckCircleFilled, WhatsAppOutlined, LoginOutlined } from "@ant-design/icons";
+import {
+  ArrowRightOutlined,
+  CheckCircleFilled,
+  WhatsAppOutlined,
+  LoginOutlined,
+  SafetyCertificateOutlined,
+  DashboardOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { motion, useReducedMotion } from "framer-motion";
 
 import logo1 from "../assets/logo/logoblanc.jpeg";
 import videotadias from "../assets/video/tadias.mp4";
+import dashboardPreview from "../assets/images/dashboard-tadias.jpeg";
+// Option recommandé : ajoute une vraie capture ici puis remplace le visuel SVG.
+// import dashboardPreview from "../assets/images/dashboard-tadias.png";
 
 const { Title, Paragraph, Text } = Typography;
 const { useBreakpoint } = Grid;
 const { Header, Content, Footer } = Layout;
 
-const cleanBase = (s) => (s || "").replace(/\/+$/, "");
-const API_BASE =
-  cleanBase(process.env.REACT_APP_API_BASE) || "http://localhost:8000";
 const MotionDiv = motion.div;
 
 export default function AccueilPro() {
@@ -47,7 +55,7 @@ export default function AccueilPro() {
   };
 
   const container = {
-    maxWidth: 1080,
+    maxWidth: 1120,
     margin: "0 auto",
     padding: "0 18px",
   };
@@ -70,23 +78,47 @@ export default function AccueilPro() {
     window.scrollTo({ top: y, behavior: "smooth" });
   };
 
-  const Section = ({ id, title, children }) => (
-    <section id={id} style={{ padding: isMobile ? "26px 0" : "44px 0" }}>
+  const Section = ({ id, label, title, subtitle, children }) => (
+    <section id={id} style={{ padding: isMobile ? "30px 0" : "52px 0" }}>
       <div style={container}>
-        {title && (
-          <Title
-            level={2}
-            style={{
-              margin: 0,
-              color: brand.ink,
-              fontSize: isMobile ? 22 : 28,
-              letterSpacing: -0.3,
-            }}
-          >
-            {title}
-          </Title>
+        {(label || title) && (
+          <div style={{ marginBottom: 16 }}>
+            {label && (
+              <Text
+                strong
+                style={{
+                  display: "block",
+                  color: brand.primary,
+                  fontSize: 13,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginBottom: 6,
+                }}
+              >
+                {label}
+              </Text>
+            )}
+            {title && (
+              <Title
+                level={2}
+                style={{
+                  margin: 0,
+                  color: brand.ink,
+                  fontSize: isMobile ? 24 : 32,
+                  letterSpacing: -0.4,
+                }}
+              >
+                {title}
+              </Title>
+            )}
+            {subtitle && (
+              <Paragraph style={{ color: brand.muted, margin: "8px 0 0", maxWidth: 760 }}>
+                {subtitle}
+              </Paragraph>
+            )}
+          </div>
         )}
-        <div style={{ marginTop: title ? 14 : 0 }}>{children}</div>
+        {children}
       </div>
     </section>
   );
@@ -100,7 +132,7 @@ export default function AccueilPro() {
         boxShadow: "0 12px 34px rgba(6,22,33,0.08)",
         ...style,
       }}
-      bodyStyle={{ padding: isMobile ? 16 : 20, ...bodyStyle }}
+      bodyStyle={{ padding: isMobile ? 16 : 22, ...bodyStyle }}
     >
       {children}
     </Card>
@@ -113,9 +145,36 @@ export default function AccueilPro() {
     boxShadow: "0 16px 40px rgba(0,171,201,0.22)",
   };
 
-  // ✅ Source vidéo robuste (mp4 local ou iframe HeyGen)
   const mediaSrc = typeof videotadias === "string" ? videotadias : videotadias?.src || "";
   const isDirectVideo = !!mediaSrc && /\.(mp4|webm|ogg)(\?.*)?$/i.test(mediaSrc);
+
+  const offers = [
+    {
+      name: "Essentiel",
+      target: "Activité simple",
+      price: "450 000 Ar",
+      kpis: "Standards",
+      reporting: "PDF mensuel",
+      meeting: "Visio 30 min",
+    },
+    {
+      name: "Business",
+      target: "PME structurée",
+      price: "700 000 Ar",
+      kpis: "Personnalisés",
+      reporting: "PDF + analyse",
+      meeting: "Visio 1h préparé",
+      featured: true,
+    },
+    {
+      name: "Performance",
+      target: "Entreprise complexe",
+      price: "Sur devis dès 2 000 000 Ar",
+      kpis: "Multi-axes",
+      reporting: "PDF + forecast",
+      meeting: "Fréquence adaptée",
+    },
+  ];
 
   return (
     <ConfigProvider
@@ -137,40 +196,6 @@ export default function AccueilPro() {
           overflow: "hidden",
         }}
       >
-        {/* blobs subtils */}
-        <MotionDiv aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-          <MotionDiv
-            style={{
-              position: "absolute",
-              width: 540,
-              height: 540,
-              borderRadius: 999,
-              left: -240,
-              top: -240,
-              background: brand.soft,
-              filter: "blur(18px)",
-            }}
-            animate={reduceMotion ? {} : { x: [0, 22, 0], y: [0, 14, 0] }}
-            transition={reduceMotion ? {} : { duration: 9, repeat: Infinity, ease: "easeInOut" }}
-          />
-
-          <MotionDiv
-            style={{
-              position: "absolute",
-              width: 460,
-              height: 460,
-              borderRadius: 999,
-              right: -200,
-              bottom: -220,
-              background: "rgba(6,22,33,0.04)",
-              filter: "blur(18px)",
-            }}
-            animate={reduceMotion ? {} : { x: [0, -16, 0], y: [0, -10, 0] }}
-            transition={reduceMotion ? {} : { duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </MotionDiv>
-
-        {/* HEADER SIMPLE (pas de menu complexe) */}
         <Header
           style={{
             position: "sticky",
@@ -210,56 +235,30 @@ export default function AccueilPro() {
                   justifyContent: "center",
                 }}
               >
-                <Image
-                  preview={false}
-                  src={logo1}
-                  alt="Logo TADIAS"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
+                <Image preview={false} src={logo1} alt="Logo TADIAS" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
 
               <div style={{ lineHeight: 1.15 }}>
-                <Text strong style={{ color: brand.ink, fontSize: 14 }}>
-                  TADIAS
-                </Text>
+                <Text strong style={{ color: brand.ink, fontSize: 14 }}>TADIAS</Text>
                 <br />
-                <Text style={{ color: brand.muted, fontSize: 12 }}>
-                  Dématérialisez. Voyer clair. Décidez mieux.
-                </Text>
+                <Text style={{ color: brand.muted, fontSize: 12 }}>Pilotage • Data • Impact</Text>
               </div>
             </Space>
 
-
             <Space>
-              <Button
-                shape="round"
-                icon={<LoginOutlined />}
-                href={`/login`}
-                style={btnPrimary}
-              >
+              <Button shape="round" icon={<LoginOutlined />} href="/login" style={btnPrimary}>
                 Espace client
               </Button>
-
-              {/* <Button
-                shape="round"
-                size={isMobile ? "middle" : "large"}
-                icon={<ArrowRightOutlined />}
-                onClick={() => scrollTo("demat")}
-                style={btnPrimary}
-              >
-                Découvrir Tadias
-              </Button> */}
             </Space>
           </div>
         </Header>
 
         <Content id="top">
-          {/* 1) HERO */}
-          <section style={{ padding: isMobile ? "28px 0 16px" : "54px 0 22px" }}>
+          <section style={{ padding: isMobile ? "30px 0 18px" : "62px 0 28px" }}>
             <div style={container}>
               <MotionDiv variants={fadeUp} initial="hidden" animate="show">
-                <Row gutter={[18, 18]} align="middle">
-                  <Col xs={24} md={14}>
+                <Row gutter={[22, 22]} align="middle">
+                  <Col xs={24} md={13}>
                     <Tag
                       style={{
                         borderRadius: 999,
@@ -270,7 +269,7 @@ export default function AccueilPro() {
                         marginBottom: 12,
                       }}
                     >
-                      Dirigeant TPE / PME
+                      Dirigeants d'entreprise
                     </Tag>
 
                     <Title
@@ -281,41 +280,39 @@ export default function AccueilPro() {
                         fontSize: isMobile ? 34 : 52,
                         lineHeight: 1.06,
                         letterSpacing: -0.9,
-                        maxWidth: "26ch",
+                        maxWidth: "22ch",
                       }}
                     >
-                      Dématérialisez. Voyez clair. Décidez mieux.
+                      Voyez enfin ce qui se passe dans votre entreprise.
                     </Title>
 
                     <Paragraph
                       style={{
-                        margin: "12px 0 0",
+                        margin: "14px 0 0",
                         color: brand.muted,
                         fontSize: isMobile ? 16 : 18,
                         lineHeight: 1.6,
                         maxWidth: "62ch",
                       }}
                     >
-                      Tadias dématérialise votre comptabilité et transforme vos données en visibilité utile pour piloter
-                      votre entreprise.
+                      Tadias transforme vos données en tableau de bord clair et lisible — accessible sur mobile,
+                      tablette ou ordinateur. Sans saisie. Sans compétence financière requise.
                     </Paragraph>
 
-                    <Space style={{ marginTop: 14 }}>
-                      <Button
-                        size="large"
-                        shape="round"
-                        onClick={() => scrollTo("demat")}
-                        style={btnPrimary}
-                      >
+                    <Space style={{ marginTop: 16 }} wrap>
+                      <Button size="large" shape="round" onClick={() => scrollTo("pourquoi")} style={btnPrimary}>
                         Découvrir Tadias <ArrowRightOutlined />
+                      </Button>
+                      <Button size="large" shape="round" onClick={() => scrollTo("offres")}>
+                        Voir nos offres
                       </Button>
                     </Space>
                   </Col>
 
-                  <Col xs={24} md={10}>
+                  <Col xs={24} md={11}>
                     <MotionDiv whileHover={hoverLift}>
                       <ProCard>
-                        <HeroVisualPro reduceMotion={reduceMotion} brand={brand} />
+                            <Image preview={false} src={dashboardPreview} alt="Tableau de bord Tadias" style={{ borderRadius: 14 }} /> 
                       </ProCard>
                     </MotionDiv>
                   </Col>
@@ -328,104 +325,123 @@ export default function AccueilPro() {
             <Divider style={{ borderColor: brand.border2, margin: isMobile ? "18px 0" : "22px 0" }} />
           </div>
 
-          {/* 2) RISQUE */}
-          <Section id="risque" style={{ color: brand.primary }} title="Décider sans visibilité est devenu un risque.">
-            <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
-              <Paragraph style={{ color: brand.muted, margin: 0, lineHeight: 1.7 }}>
-                La comptabilité est obligatoire, mais elle arrive souvent trop tard.
-                <br />
-                Les tableaux Excel sont produits, mais rarement consultés.
-                <br />
-                Faute de lecture claire, les décisions se prennent à l’intuition — parfois trop tard.
-              </Paragraph>
-            </ProCard>
+          <Section id="probleme" label="Le problème" title="Décider sans visibilité, c'est piloter à l'aveugle.">
+            <Row gutter={[14, 14]}>
+              {[
+                "Vous faites du chiffre, mais vous ne savez pas exactement si vous gagnez ou perdez de l'argent ce mois-ci.",
+                "Vos données existent quelque part — mais personne ne les lit vraiment.",
+                "Les grandes entreprises ont des directeurs financiers pour ça. Tadias rend cette expertise accessible à toute entreprise.",
+              ].map((item, index) => (
+                <Col xs={24} md={8} key={item}>
+                  <MotionDiv whileHover={hoverLift}>
+                    <ProCard style={{ height: "100%" }}>
+                      <Text strong style={{ color: brand.primary, fontSize: 20 }}>0{index + 1}</Text>
+                      <Paragraph style={{ color: brand.ink, margin: "10px 0 0", lineHeight: 1.65 }}>{item}</Paragraph>
+                    </ProCard>
+                  </MotionDiv>
+                </Col>
+              ))}
+            </Row>
           </Section>
 
-
-          <MotionDiv aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-            <MotionDiv
-              style={{
-                position: "absolute",
-                width: 540,
-                height: 540,
-                borderRadius: 999,
-                left: -240,
-                top: -240,
-                background: brand.soft,
-                filter: "blur(18px)",
-              }}
-              animate={reduceMotion ? {} : { x: [0, 22, 0], y: [0, 14, 0] }}
-              transition={reduceMotion ? {} : { duration: 9, repeat: Infinity, ease: "easeInOut" }}
-            />
-
-            <MotionDiv
-              style={{
-                position: "absolute",
-                width: 460,
-                height: 460,
-                borderRadius: 999,
-                right: -200,
-                bottom: -220,
-                background: "rgba(6,22,33,0.04)",
-                filter: "blur(18px)",
-              }}
-              animate={reduceMotion ? {} : { x: [0, -16, 0], y: [0, -10, 0] }}
-              transition={reduceMotion ? {} : { duration: 10, repeat: Infinity, ease: "easeInOut" }}
-            />
-          </MotionDiv>
-
-
-
-          {/* 3) DÉMAT */}
-          <Section title="Une comptabilité dématérialisée, sans prise de tête.">
-            <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
+          <Section id="fonctionnement" label="Comment ça fonctionne" title="Simple pour vous. Rigoureux pour nous.">
+            <ProCard>
               <List
                 dataSource={[
-                  "Le client a uniquement à scanner ou prendre en photo ses pièces comptables de manière lisible et à les déposer sur la plateforme Tadias.",
-                  "Aucune compétence comptable ou financière n’est requise. Le traitement des données et la tenue de la comptabilité de gestion sont pris en charge en back-end.",
-                  "Les données sont ensuite automatiquement visibles sur la plateforme Tadias,sous forme d’indicateurs simples, de tendances et de signaux de pilotage.",
-                  "Les obligations légales et fiscales (déclarations, clôtures, régularisations) ne sont pas incluses.",
+                  {
+                    title: "① Cadrage stratégique",
+                    text: "Une séance de travail avec vous pour comprendre vos objectifs et définir les indicateurs qui ont du sens pour votre activité. Inclus dans l'abonnement.",
+                  },
+                  {
+                    title: "② Vous scannez, on gère",
+                    text: "Photographiez ou scannez vos pièces. Nos équipes traitent tout en arrière-plan. Votre tableau de bord se met à jour automatiquement.",
+                  },
+                  {
+                    title: "③ Reporting mensuel + point stratégique",
+                    text: "Chaque mois : un rapport PDF commenté et un point en visio avec un consultant dédié pour analyser vos résultats et anticiper.",
+                  },
+                  {
+                    title: "＋ Forecast & pilotage avancé",
+                    text: "Une fois votre historique constitué, on intègre des prévisions budgétaires et une lecture prospective de votre activité. Le pilotage de performance comme les grandes entreprises.",
+                  },
                 ]}
                 renderItem={(item) => (
-                  <List.Item style={{ border: "none", padding: "8px 0" }}>
+                  <List.Item style={{ borderColor: brand.border2, padding: "14px 0" }}>
                     <Space align="start">
-                      <CheckCircleFilled style={{ color: brand.primary, marginTop: 4 }} />
-                      <Text style={{ color: brand.ink }}>{item}</Text>
+                      <CheckCircleFilled style={{ color: brand.primary, marginTop: 5 }} />
+                      <div>
+                        <Text strong style={{ color: brand.ink }}>{item.title}</Text>
+                        <Paragraph style={{ color: brand.muted, margin: "4px 0 0", lineHeight: 1.65 }}>{item.text}</Paragraph>
+                      </div>
                     </Space>
                   </List.Item>
                 )}
               />
+              <Tag style={{ borderRadius: 999, padding: "7px 11px", background: brand.soft, color: brand.primary }}>
+                Alertes automatiques incluses dans toutes les offres
+              </Tag>
             </ProCard>
           </Section>
 
-          {/* 4) VISIBILITÉ */}
-          <Section id="visibilite" title="Mais surtout, vous voyez enfin ce qui se passe.">
-            <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
-              <Paragraph style={{ color: brand.muted, margin: 0, lineHeight: 1.7 }}>
-                Contrairement à des tableaux difficiles à lire, Tadias restitue vos données sous forme de tendances, de
-                tensions et de signaux simples.
-                <br />
-                Une lecture claire de la santé de votre entreprise, accessible à tout moment sur ordinateur, tablette
-                ou mobile.
+          <Section id="offres" label="Les offres" title="Nos offres d'abonnement mensuel">
+            <Row gutter={[14, 14]}>
+              {offers.map((offer) => (
+                <Col xs={24} md={8} key={offer.name}>
+                  <MotionDiv whileHover={hoverLift}>
+                    <ProCard
+                      style={{
+                        height: "100%",
+                        border: offer.featured ? "1px solid rgba(0,171,201,0.45)" : `1px solid ${brand.border}`,
+                      }}
+                    >
+                      {offer.featured && <Tag color="cyan">Populaire</Tag>}
+                      <Title level={3} style={{ margin: "8px 0 4px", color: brand.ink }}>{offer.name}</Title>
+                      <Text style={{ color: brand.muted }}>{offer.target}</Text>
+                      <Title level={4} style={{ color: brand.primary, margin: "16px 0" }}>{offer.price} / mois</Title>
+
+                      <List
+                        size="small"
+                        dataSource={[
+                          ["KPIs", offer.kpis],
+                          ["Reporting", offer.reporting],
+                          ["Point mensuel", offer.meeting],
+                        ]}
+                        renderItem={([label, value]) => (
+                          <List.Item style={{ paddingLeft: 0, paddingRight: 0 }}>
+                            <Text style={{ color: brand.muted }}>{label}</Text>
+                            <Text strong style={{ color: brand.ink }}>{value}</Text>
+                          </List.Item>
+                        )}
+                      />
+                    </ProCard>
+                  </MotionDiv>
+                </Col>
+              ))}
+            </Row>
+
+            <ProCard style={{ marginTop: 14, background: "linear-gradient(180deg, rgba(0,171,201,0.08), rgba(255,255,255,0.92))" }}>
+              <Paragraph style={{ color: brand.muted, margin: 0 }}>
+                * Alertes automatiques et tableau de bord digital inclus dans toutes les offres.<br />
+                * Les obligations légales et fiscales ne sont pas incluses dans l'abonnement.
               </Paragraph>
+              <Button
+                shape="round"
+                icon={<WhatsAppOutlined />}
+                href="https://wa.me/261382308971?text=Bonjour%20Tadias%2C%20je%20souhaite%20en%20savoir%20plus."
+                target="_blank"
+                rel="noreferrer"
+                style={{ ...btnPrimary, marginTop: 12 }}
+              >
+                Nous contacter via WhatsApp
+              </Button>
             </ProCard>
           </Section>
 
-          {/* 5) POUR QUI */}
-          <Section id="cible" title="Le pilotage n’est plus réservé aux grandes entreprises.">
-            <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
-              <Paragraph style={{ color: brand.muted, margin: 0, lineHeight: 1.7 }}>
-                Tadias s’adresse aux dirigeants de TPE et PME qui veulent comprendre leur activité sans jargon
-                financier et prendre de meilleures décisions sans passer des heures sur les chiffres.
-              </Paragraph>
-            </ProCard>
-          </Section>
-
-          {/* 6) VIDÉO */}
-          <Section id="demat" title="Pourquoi Tadias existe.">
+          <Section id="pourquoi" label="Pourquoi Tadias?" title="Conçu par des praticiens, pour des dirigeants.">
             <Row gutter={[14, 14]} align="top">
-              <Col xs={24} md={16}>
-                <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
+              <Col xs={24} md={15}>
+                <ProCard>
+                  <Title level={3} style={{ marginTop: 0, color: brand.ink }}>Pourquoi Tadias existe?</Title>
                   <div
                     style={{
                       position: "relative",
@@ -438,164 +454,89 @@ export default function AccueilPro() {
                     }}
                   >
                     {isDirectVideo ? (
-                      <video
-                        src={mediaSrc}
-                        controls
-                        playsInline
-                        preload="metadata"
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          width: "100%",
-                          height: "100%",
-                          display: "block",
-                        }}
-                      >
+                      <video src={mediaSrc} controls playsInline preload="metadata" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
                         Votre navigateur ne supporte pas la vidéo.
                       </video>
                     ) : (
                       <iframe
                         title="Vidéo Tadias"
                         src={mediaSrc}
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          width: "100%",
-                          height: "100%",
-                          border: 0,
-                        }}
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
                         allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       />
                     )}
                   </div>
-
-                  <Text style={{ color: brand.muted, fontSize: 12, display: "block", marginTop: 10 }}>
-                    (Pourquoi Tadias existe)
-                  </Text>
                 </ProCard>
               </Col>
 
-              <Col xs={24} md={8}>
-                <MotionDiv whileHover={hoverLift}>
-                  <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
-                    <Text strong style={{ color: brand.ink, fontSize: 16 }}>
-                      Une lecture simple, quand vous en avez besoin
-                    </Text>
-                    <Paragraph style={{ color: brand.muted, margin: "8px 0 0" }}>
-                      Objectif : une visibilité utile et actionnable, sans surcharge ni jargon.
-                    </Paragraph>
-                  </ProCard>
-                </MotionDiv>
+              <Col xs={24} md={9}>
+                <ProCard>
+                  <Paragraph style={{ color: brand.muted, lineHeight: 1.7 }}>
+                    Tadias existe depuis novembre 2003. À l'époque, sous le nom Tadiass Consulting, le cabinet accompagnait déjà des PME malgaches en gestion, finance et procédures. Vingt ans plus tard, nous avons gardé l'essentiel — et ajouté ce qui manquait : un outil digital, des tableaux de bord en temps réel, et un suivi continu.
+                    Nous avons vu des dirigeants prendre de mauvaises décisions faute de lisibilité — pas par manque d'intelligence, mais par manque d'outil adapté.
+                  </Paragraph>
+                  <Paragraph style={{ color: brand.muted, lineHeight: 1.7, marginBottom: 0 }}>
+                    <Text strong style={{ color: brand.ink }}>Tadias ne remplace pas votre expert-comptable.</Text>Il fait le lien entre vos données comptables et votre lecture managériale au quotidien.
+                  </Paragraph>
+                </ProCard>
               </Col>
+            </Row>
+
+            <Row gutter={[14, 14]} style={{ marginTop: 14 }}>
+              {[
+                [<DashboardOutlined />, "Tableau de bord accessible partout, à tout moment"],
+                [<SafetyCertificateOutlined />, "Vos données restent les vôtres"],
+                [<UserOutlined />, "Un consultant dédié, pas un logiciel livré seul"],
+              ].map(([icon, text]) => (
+                <Col xs={24} md={8} key={text}>
+                  <ProCard style={{ height: "100%" }}>
+                    <Space align="start">
+                      <span style={{ color: brand.primary, fontSize: 22 }}>{icon}</span>
+                      <Text strong style={{ color: brand.ink }}>{text}</Text>
+                    </Space>
+                  </ProCard>
+                </Col>
+              ))}
             </Row>
           </Section>
 
-          {/* 7) ÉCOSYSTÈME */}
-          <Section id="ecosysteme" title="Une plateforme, un écosystème.">
-            <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
-              <Paragraph style={{ color: brand.muted, margin: 0, lineHeight: 1.7 }}>
-                Tadias automatise et structure les données issues de la comptabilité dématérialisée.
-                <br />
-                <br />
-                Lorsque le traitement comptable est assuré en back-end, des états intermédiaires ou bilans peuvent être
-                produits à la demande, dans le cadre de prestations complémentaires, en collaboration avec des cabinets
-                comptables partenaires.
-                <br />
-                <br />
-                Ces documents peuvent être intégrés directement dans l’espace Tadias du client, afin de conserver une
-                continuité de lecture entre données comptables et pilotage.
-                <br />
-                <br />
-                Les obligations légales, fiscales et déclaratives (déclarations, clôtures, régularisations de fin
-                d’exercice) sont également proposées en sus, dans le cadre de collaborations avec des cabinets
-                comptables.
-                <br />
-                <br />
-                <Text strong style={{ color: brand.ink }}>
-                  Tadias ne remplace pas l’expert-comptable.
-                </Text>{" "}
-                Il facilite le lien entre production comptable et lecture managériale.
+          <Section id="contact" label="Call to action final" title="Envie d'y voir plus clair sur votre activité ?">
+            <ProCard style={{ background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))" }}>
+              <Paragraph style={{ color: brand.muted, margin: "0 0 14px", lineHeight: 1.7 }}>
+                On commence par échanger pour comprendre votre contexte et voir si Tadias est fait pour vous. Aucun engagement.
               </Paragraph>
+              <Button
+                size="large"
+                shape="round"
+                icon={<WhatsAppOutlined />}
+                href="https://wa.me/261382308971?text=Bonjour%20Tadias%2C%20je%20souhaite%20en%20savoir%20plus."
+                target="_blank"
+                rel="noreferrer"
+                style={btnPrimary}
+              >
+                Nous contacter via WhatsApp
+              </Button>
             </ProCard>
           </Section>
 
-          {/* 8) DISCLAIMER OUTIL */}
-          <Section id="pilotage" title="Un outil de pilotage, pas un outil comptable.">
-            <ProCard style={{ border: "1px solid rgba(0,171,201,0.18)", background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
-              <Paragraph style={{ color: brand.muted, margin: 0, lineHeight: 1.7 }}>
-                Les indicateurs proposés par Tadias sont estimatifs et évolutifs.
-                <br />
-                Ils servent à piloter, anticiper et arbitrer à partir de tendances et de signaux.
-                <br />
-                Ils ne constituent pas des données comptables certifiées et ne remplacent pas les obligations légales
-                et fiscales.
-              </Paragraph>
-            </ProCard>
-          </Section>
-
-          {/* 9) EXPÉRIENCE */}
-          <Section id="experience" title={null}>
+          <Section id="mention-legale" label="Mention légale" title="Informations de pilotage et cadre d’usage">
             <ProCard
               style={{
-                border: "1px solid rgba(0,171,201,0.18)",
-                background: "linear-gradient(180deg, rgba(0,171,201,0.08), rgba(255,255,255,0.92))",
+                background: "linear-gradient(180deg, rgba(0,171,201,0.05), rgba(255,255,255,0.92))",
               }}
             >
-              <Text style={{ color: brand.ink }}>
-                Conçu à partir de plus de vingt ans d’expérience terrain en gestion, finance et accompagnement
-                d’entreprises à taille humaine.
-              </Text>
-            </ProCard>
-          </Section>
-
-          {/* 10) CTA + CONTACT DISCRET EN BAS */}
-          <Section id="contact" title="Voir clair, c’est reprendre le contrôle.">
-            <ProCard
-              style={{
-                border: "1px solid rgba(0,171,201,0.18)",
-                background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))",
-              }}
-            >
-              <Paragraph style={{ color: brand.muted, margin: "0 0 10px", lineHeight: 1.7 }}>
-                Tadias n’est pas un outil de plus.
-                <br />
-                C’est une manière plus simple de comprendre son entreprise au quotidien.
+              <Paragraph style={{ color: brand.muted, margin: 0, lineHeight: 1.7 }}>
+                Les indicateurs affichés sur la plateforme sont des estimations de gestion destinées au pilotage opérationnel.
+                Dans le cadre d'un projet de financement ou d'investissement, notre équipe peut produire des états de gestion
+                approfondis sur demande, en sus de l'abonnement.
               </Paragraph>
 
-              <Divider style={{ borderColor: "rgba(0,171,201,0.18)", margin: "14px 0" }} />
+              <Divider style={{ borderColor: "rgba(0,171,201,0.18)", margin: "18px 0" }} />
 
-              <Text strong style={{ color: brand.ink, fontSize: 16 }}>
-                Envie d’y voir plus clair sur votre activité ?
+              <Text strong style={{ color: brand.ink }}>
+                tadias.co | Pilotage • Data • Impact
               </Text>
-              <Paragraph style={{ color: brand.muted, margin: "8px 0 0", lineHeight: 1.7 }}>
-                Tadias s’adresse aux dirigeants qui veulent une vision simple et lisible de leurs chiffres, sans
-                complexité inutile.
-                <br />
-                Nous échangeons d’abord pour comprendre votre contexte et voir si la plateforme est pertinente pour
-                vous.
-              </Paragraph>
-
-              <Space style={{ marginTop: 12 }} wrap>
-                <Button
-                  shape="round"
-                  icon={<WhatsAppOutlined />}
-                  href="https://wa.me/261382308971?text=Bonjour%20Tadias%2C%20je%20souhaite%20en%20savoir%20plus."
-                  target="_blank"
-                  rel="noreferrer"
-                  style={btnPrimary}
-                >
-                  Nous contacter
-                </Button>
-
-              </Space>
-
-              <div style={{ marginTop: 10 }}>
-                <Text style={{ color: "rgba(6,22,33,0.50)", fontSize: 12, fontStyle: "italic" }}>
-                  Les indicateurs présentés sont des estimations destinées au pilotage et à l’analyse des tendances.
-                  Tadias n’est pas un outil de décision financière ou d’investissement.
-                </Text>
-              </div>
             </ProCard>
           </Section>
         </Content>
@@ -603,9 +544,9 @@ export default function AccueilPro() {
         <Footer style={{ background: "transparent", padding: "20px 0 26px" }}>
           <div style={container}>
             <Divider style={{ borderColor: brand.border2, margin: "0 0 14px" }} />
-            <Space style={{ width: "100%", justifyContent: "space-between" }}>
-              <Text style={{ color: "rgba(6,22,33,0.55)", fontSize: 12, background: "linear-gradient(180deg, rgba(0,171,201,0.10), rgba(255,255,255,0.92))", }}>
-                © {new Date().getFullYear()} TADIAS
+            <Space style={{ width: "100%", justifyContent: "space-between" }} wrap>
+              <Text style={{ color: "rgba(6,22,33,0.55)", fontSize: 12 }}>
+                © {new Date().getFullYear()} TADIAS — tadias.co | Pilotage • Data • Impact
               </Text>
               <Button type="text" onClick={() => scrollTo("top")} style={{ color: brand.ink }}>
                 Haut de page
@@ -614,11 +555,10 @@ export default function AccueilPro() {
           </div>
         </Footer>
       </Layout>
-    </ConfigProvider >
+    </ConfigProvider>
   );
 }
 
-/** Visual pro : plus sobre + plus “dashboard” */
 function HeroVisualPro({ reduceMotion, brand }) {
   const pulse = reduceMotion
     ? {}
@@ -627,182 +567,60 @@ function HeroVisualPro({ reduceMotion, brand }) {
       transition: { duration: 2.6, repeat: Infinity, ease: "easeInOut" },
     };
 
-  const floatSlow = (delay = 0) =>
-    reduceMotion
-      ? {}
-      : {
-        y: [0, -6, 0],
-        transition: { duration: 3.2, repeat: Infinity, ease: "easeInOut", delay },
-      };
-
   return (
     <div
-      aria-label="Aperçu cockpit"
+      aria-label="Aperçu tableau de bord Tadias"
       style={{
         position: "relative",
         width: "100%",
-        height: 240,
+        minHeight: 290,
         borderRadius: 16,
         overflow: "hidden",
         border: `1px solid ${brand.border}`,
         background: "linear-gradient(180deg, rgba(6,22,33,0.03), rgba(6,22,33,0.01))",
+        padding: 16,
       }}
     >
-      <svg width="100%" height="100%" viewBox="0 0 600 300" style={{ position: "absolute", inset: 0 }}>
-        <defs>
-          <pattern id="gridPro" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(6,22,33,0.10)" strokeWidth="1" />
-          </pattern>
-
-          <linearGradient id="lineGradPro" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="rgba(6,22,33,0.28)" />
-            <stop offset="55%" stopColor={brand.primary} />
-            <stop offset="100%" stopColor="rgba(6,22,33,0.18)" />
-          </linearGradient>
-
-          <linearGradient id="areaPro" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(0,171,201,0.18)" />
-            <stop offset="100%" stopColor="rgba(0,171,201,0.00)" />
-          </linearGradient>
-        </defs>
-
-        <rect x="0" y="0" width="600" height="300" fill="url(#gridPro)" />
-
-        <path
-          d="M40,220 C140,160 220,210 300,150 C380,95 440,175 520,125 C555,105 575,110 590,95 L590,300 L40,300 Z"
-          fill="url(#areaPro)"
-        />
-
-        <motion.path
-          d="M40,220 C140,160 220,210 300,150 C380,95 440,175 520,125 C555,105 575,110 590,95"
-          fill="none"
-          stroke="url(#lineGradPro)"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          initial={reduceMotion ? {} : { pathLength: 0 }}
-          animate={reduceMotion ? {} : { pathLength: 1 }}
-          transition={reduceMotion ? {} : { duration: 1.2, ease: "easeOut" }}
-        />
-
-        {[
-          { cx: 300, cy: 150, delay: 0.0 },
-          { cx: 520, cy: 125, delay: 0.35 },
-          { cx: 590, cy: 95, delay: 0.7 },
-        ].map((p, i) => (
-          <motion.circle
-            key={i}
-            cx={p.cx}
-            cy={p.cy}
-            r="6"
-            fill={brand.primary}
-            animate={
-              reduceMotion
-                ? {}
-                : {
-                  opacity: [0.6, 1, 0.6],
-                  r: [5, 7, 5],
-                  transition: { duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: p.delay },
-                }
-            }
-          />
-        ))}
-      </svg>
-
-      <motion.div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          left: 12,
-          top: 12,
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-        {...floatSlow(0.1)}
-      >
-        {[
-          { label: "Tendance", value: "↗", bg: brand.soft, b: "rgba(0,171,201,0.25)", c: brand.primary },
-          {
-            label: "Tadias",
-            value: "",
-            bg: "rgba(6,22,33,0.04)",
-            b: "rgba(6,22,33,0.10)",
-            c: "rgba(6,22,33,0.70)",
-          },
-        ].map((k) => (
-          <div
-            key={k.label}
-            style={{
-              borderRadius: 999,
-              padding: "8px 10px",
-              background: k.bg,
-              border: `1px solid ${k.b}`,
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-              boxShadow: "0 10px 26px rgba(6,22,33,0.08)",
-            }}
-          >
-            <span style={{ color: k.c, fontWeight: 700 }}>{k.value}</span>
-            <span style={{ color: "rgba(6,22,33,0.70)", fontSize: 12 }}>{k.label}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+        {["Chiffre", "Marge", "Trésorerie"].map((label, index) => (
+          <div key={label} style={{ flex: 1, borderRadius: 14, background: "rgba(255,255,255,0.82)", border: `1px solid ${brand.border}`, padding: 12 }}>
+            <Text style={{ color: brand.muted, fontSize: 12 }}>{label}</Text>
+            <br />
+            <Text strong style={{ color: index === 1 ? brand.primary : brand.ink, fontSize: 18 }}>{index === 0 ? "+12%" : index === 1 ? "34%" : "OK"}</Text>
           </div>
         ))}
-      </motion.div>
+      </div>
 
-      <motion.div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          right: 12,
-          bottom: 12,
-          width: 168,
-          height: 72,
-          borderRadius: 16,
-          background: "rgba(255,255,255,0.78)",
-          border: "1px solid rgba(6,22,33,0.10)",
-          boxShadow: "0 18px 50px rgba(6,22,33,0.10)",
-          overflow: "hidden",
-        }}
-        {...floatSlow(0.35)}
-      >
-        <motion.div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "radial-gradient(circle at 20% 30%, rgba(0,171,201,0.18), rgba(0,0,0,0))",
-          }}
-          {...pulse}
-        />
-        <div style={{ position: "absolute", left: 12, top: 10 }}>
+      <div style={{ borderRadius: 14, background: "rgba(255,255,255,0.78)", border: `1px solid ${brand.border}`, height: 156, position: "relative", overflow: "hidden" }}>
+        <svg width="100%" height="100%" viewBox="0 0 600 190" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="lineGradHome" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(6,22,33,0.28)" />
+              <stop offset="55%" stopColor={brand.primary} />
+              <stop offset="100%" stopColor="rgba(6,22,33,0.18)" />
+            </linearGradient>
+            <linearGradient id="areaHome" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(0,171,201,0.18)" />
+              <stop offset="100%" stopColor="rgba(0,171,201,0.00)" />
+            </linearGradient>
+          </defs>
+          <path d="M20,150 C110,92 190,132 270,78 C350,28 430,112 500,65 C540,40 570,52 590,32 L590,190 L20,190 Z" fill="url(#areaHome)" />
+          <motion.path
+            d="M20,150 C110,92 190,132 270,78 C350,28 430,112 500,65 C540,40 570,52 590,32"
+            fill="none"
+            stroke="url(#lineGradHome)"
+            strokeWidth="4"
+            strokeLinecap="round"
+            initial={reduceMotion ? {} : { pathLength: 0 }}
+            animate={reduceMotion ? {} : { pathLength: 1 }}
+            transition={reduceMotion ? {} : { duration: 1.2, ease: "easeOut" }}
+          />
+        </svg>
+      </div>
 
-        </div>
-
-        <div
-          style={{
-            position: "absolute",
-            left: 12,
-            right: 12,
-            bottom: 10,
-            display: "flex",
-            gap: 6,
-            alignItems: "flex-end",
-          }}
-        >
-          {[10, 18, 14, 22, 16, 26].map((h, i) => (
-            <div
-              key={i}
-              style={{
-                width: 10,
-                height: h,
-                borderRadius: 8,
-                background: i === 5 ? brand.primary : "rgba(6,22,33,0.10)",
-                border: "1px solid rgba(6,22,33,0.10)",
-              }}
-            />
-          ))}
-        </div>
+      <motion.div {...pulse} style={{ marginTop: 12, borderRadius: 999, padding: "9px 12px", background: brand.soft, border: "1px solid rgba(0,171,201,0.25)", color: brand.primary, display: "inline-block" }}>
+        Tableau de bord clair et lisible
       </motion.div>
     </div>
   );
-  //test
 }
