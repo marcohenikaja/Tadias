@@ -13,6 +13,7 @@ import {
   Layout,
   Divider,
   ConfigProvider,
+  Carousel
 } from "antd";
 import {
   ArrowRightOutlined,
@@ -28,6 +29,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import logo1 from "../assets/logo/logoblanc.jpeg";
 import videotadias from "../assets/video/tadias.mp4";
 import dashboardPreview from "../assets/images/dashboard-tadias.jpeg";
+import carroussel01 from "../assets/images/carrouseel01.jpeg";
 // Option recommandé : ajoute une vraie capture ici puis remplace le visuel SVG.
 // import dashboardPreview from "../assets/images/dashboard-tadias.png";
 
@@ -312,7 +314,33 @@ export default function AccueilPro() {
                   <Col xs={24} md={11}>
                     <MotionDiv whileHover={hoverLift}>
                       <ProCard>
-                            <Image preview={false} src={dashboardPreview} alt="Tableau de bord Tadias" style={{ borderRadius: 14 }} /> 
+                        <Carousel autoplay dots>
+                          <div>
+                            <Image
+                              preview={false}
+                              src={dashboardPreview}
+                              alt="Dashboard Tadias"
+                              style={{
+                                borderRadius: 14,
+                                width: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <Image
+                              preview={false}
+                              src={carroussel01}
+                              alt="Présentation Tadias"
+                              style={{
+                                borderRadius: 14,
+                                width: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          </div>
+                        </Carousel>
                       </ProCard>
                     </MotionDiv>
                   </Col>
